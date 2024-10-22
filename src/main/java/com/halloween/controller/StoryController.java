@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/stories")
+@RequestMapping("/api/stories")
 @CrossOrigin("*")
 public class StoryController {
 
@@ -20,12 +20,12 @@ public class StoryController {
         this.storyService = storyService;
     }
 
-    @GetMapping
+    @GetMapping("/all-titles")
     public List<StoryTitleDTO> getAllStoryTitles(){
         return storyService.getAllStoryTitles();
     }
 
-    @GetMapping("{id}")
+    @GetMapping("/{id}")
     public ResponseEntity<StoryDTO> getStoryById(@PathVariable Long id){
         StoryDTO story = storyService.getStoryById(id);
         return ResponseEntity.ok(story);
@@ -37,7 +37,7 @@ public class StoryController {
         return ResponseEntity.status(HttpStatus.CREATED).body(newStory);
     }
 
-    @PutMapping("{id}")
+    @PutMapping("/{id}")
     public ResponseEntity<StoryDTO> updateStory(@PathVariable Long id ,@RequestBody StoryDTO storyDTO){
         StoryDTO updatedStory = storyService.updateStory(id, storyDTO);
         return ResponseEntity.ok(updatedStory);

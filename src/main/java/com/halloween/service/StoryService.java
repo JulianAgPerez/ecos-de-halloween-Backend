@@ -7,6 +7,7 @@ import com.halloween.repository.StoryRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
@@ -19,18 +20,21 @@ public class StoryService {
     private StoryRepository storyRepository;
 
     //Metodos para StoryDTO
+    @Transactional(readOnly = true)
     public StoryDTO getStoryById(Long id){
         Story story = storyRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,"Cuento no encontrado"));
         return convertToDTO(story);
     }
 
+    @Transactional
     public StoryDTO createStory(StoryDTO storyDTO){
         Story story = convertToEntity(storyDTO);
         story = storyRepository.save(story);
         return convertToDTO(story);
     }
 
+    @Transactional
     public StoryDTO updateStory(Long id, StoryDTO storyDTO){
         Story story = storyRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,"Cuento no encontrado"));
@@ -45,11 +49,11 @@ public class StoryService {
     }
 
     //Metodos para StoryTitleDTO
+    @Transactional(readOnly = true)
     public List<StoryTitleDTO> getAllStoryTitles(){
         List<Story> stories = storyRepository.findAll();
         return stories.stream().map(this::convertToTitleDTO).collect(Collectors.toList());
     }
-
 
     // Conversiones entre entidades y DTOs
     private StoryDTO convertToDTO(Story story){
