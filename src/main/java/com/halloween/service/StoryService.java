@@ -5,8 +5,6 @@ import com.halloween.dtos.StoryTitleDTO;
 import com.halloween.entities.Story;
 import com.halloween.repository.StoryRepository;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.context.config.ConfigDataResourceNotFoundException;
-import org.springframework.data.crossstore.ChangeSetPersister;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
