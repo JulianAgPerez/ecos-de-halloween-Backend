@@ -1,7 +1,7 @@
 # Compiled class file
 *.class
 
-# Log file
+# Log files
 *.log
 
 # BlueJ files
@@ -19,6 +19,62 @@
 *.tar.gz
 *.rar
 
-# virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
+# Virtual machine crash logs
 hs_err_pid*
 replay_pid*
+
+# Compiled Java classes
+*.class
+
+# Eclipse
+.metadata
+.classpath
+.project
+.settings/
+bin/
+
+# IntelliJ IDEA
+.idea/
+*.iml
+*.ipr
+*.iws
+out/
+
+# VS Code
+.vscode/
+
+# Maven
+target/
+!.mvn/wrapper/maven-wrapper.jar
+
+# Gradle
+.gradle/
+build/
+!gradle-wrapper.jar
+
+# Windows
+Thumbs.db
+*.DS_Store
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Linux
+*~
+
+# Node
+node_modules/
+
+# End of default values #
+
+# Application properties
+/src/main/resources/application.properties
+/src/main/resources/application.yml
+/src/main/resources/application-*.properties
+/src/main/resources/application-*.yml
+/src/test/resources/application.properties
+/src/test/resources/application.yml
+/src/test/resources/application-*.properties
+/src/test/resources/application-*.yml
