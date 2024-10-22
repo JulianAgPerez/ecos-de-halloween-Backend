@@ -25,7 +25,7 @@ Los administradores (yo) pueden subir y gestionar cuentos, mientras que los visi
     
   ~~- Howler.js (para sonido)~~
   
-- **[Backend]:**
+- **Backend:**
   - Java (con Spring Boot)
 
 - **Autenticación:**
