@@ -4,12 +4,16 @@ import com.halloween.dtos.StoryDTO;
 import com.halloween.dtos.StoryTitleDTO;
 import com.halloween.entities.Story;
 import com.halloween.repository.StoryRepository;
+import org.apache.poi.xwpf.usermodel.XWPFDocument;
+import org.apache.poi.xwpf.usermodel.XWPFParagraph;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -45,7 +49,29 @@ public class StoryService {
         story.setBody(storyDTO.getBody());
 
         return convertToDTO(storyRepository.save(story));
+    }
+    @Transactional
+    public StoryDTO uploadBody(MultipartFile file, Long storyId) throws IOException {
+        // Leer el contenido del archivo Word como String
+        StringBuilder fileContent = new StringBuilder();
 
+        try (XWPFDocument document = new XWPFDocument(file.getInputStream())) {
+            for (XWPFParagraph paragraph : document.getParagraphs()) {
+                fileContent.append(paragraph.getText()).append("\n");
+            }
+        }
+
+        // Encontrar la historia por ID
+        Story story = storyRepository.findById(storyId)
+                .orElseThrow(() -> new RuntimeException("Story not found"));
+
+        // Asignar el contenido del archivo como String
+        story.setBody(fileContent.toString()); // Ahora es String
+
+        // Guardar la historia actualizada
+        storyRepository.save(story);
+
+        return convertToDTO(story);
     }
 
     //Metodos para StoryTitleDTO

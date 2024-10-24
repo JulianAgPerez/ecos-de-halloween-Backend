@@ -38,6 +38,9 @@ dependencies {
 	// POSTGRESSQL
 	runtimeOnly 'org.postgresql:postgresql'
 
+	//Para subir words
+	implementation 'org.apache.poi:poi-ooxml:5.2.3'
+
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
