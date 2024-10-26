@@ -13,12 +13,6 @@ java {
 	}
 }
 
-configurations {
-	compileOnly {
-		extendsFrom annotationProcessor
-	}
-}
-
 repositories {
 	mavenCentral()
 }
@@ -37,16 +31,21 @@ dependencies {
 	developmentOnly 'org.springframework.boot:spring-boot-devtools'
 	// POSTGRESSQL
 	runtimeOnly 'org.postgresql:postgresql'
-
-	//Para subir words
+	// Para subir words
 	implementation 'org.apache.poi:poi-ooxml:5.2.3'
-
-	//Security
+	// Security
 	implementation 'org.springframework.boot:spring-boot-starter-security'
-	implementation 'io.jsonwebtoken:jjwt:0.9.1'
-
+	// JWT
+	implementation 'io.jsonwebtoken:jjwt-api:0.12.3'
+	implementation 'io.jsonwebtoken:jjwt-impl:0.12.6'
+	implementation 'io.jsonwebtoken:jjwt-jackson:0.12.5'
+	// OpenAPI Documentation
+	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.3.0'
+	// Validation
+	implementation 'org.springframework.boot:spring-boot-starter-validation:3.3.4'
+	// Testing
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
-	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+	testImplementation 'org.springframework.security:spring-security-test:6.3.0'
 }
 
 tasks.named('test') {

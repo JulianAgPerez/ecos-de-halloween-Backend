@@ -1,35 +1,37 @@
 package com.halloween.repository;
 
+import com.halloween.entities.User;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Entity(name = "tokens")
-public class Token {
-    public enum TokenType{
-        BEARER
-    }
+@Entity
+@Table(name = "tokens")
+public final class Token {
     @Id
-    @GeneratedValue
-    public long id;
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private long id;
 
     @Column(unique = true)
-    public String token;
+    private String token;
 
     @Enumerated(EnumType.STRING)
-    public TokenType tokenType = TokenType.BEARER;
+    private TokenType tokenType = TokenType.BEARER;
 
-    public boolean revoked;
+    @Column(nullable = false)
+    private boolean revoked;
 
-    public  boolean expired;
+    @Column(nullable = false)
+    private boolean expired;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")
-    public User user;
+    private User user;
+
+    public enum TokenType {
+        BEARER
+    }
 }
