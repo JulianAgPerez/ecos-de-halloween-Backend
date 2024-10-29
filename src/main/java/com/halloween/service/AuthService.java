@@ -115,8 +115,4 @@ public class AuthService {
         return new TokenResponse(accessToken, refreshToken);
     }
 
-    public TokenResponse login(LoginRequest request) {
-        AuthRequest authRequest = new AuthRequest(request.email(), request.password());
-        return authenticate(authRequest);
-    }
 }
