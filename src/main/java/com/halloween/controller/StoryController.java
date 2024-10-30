@@ -13,7 +13,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/stories")
-@CrossOrigin("*")
+@CrossOrigin(origins = "*", methods= {RequestMethod.GET,RequestMethod.POST})
 public class StoryController {
     private final StoryService storyService;
     public StoryController(StoryService storyService) {
@@ -21,7 +21,7 @@ public class StoryController {
     }
 
     @PostMapping("/upload-body/{storyId}")
-    public ResponseEntity<StoryDTO> uploadBody(@RequestParam("file") MultipartFile file, @RequestParam("storyId") Long storyId) throws Exception {
+    public ResponseEntity<StoryDTO> uploadBody(@RequestParam("file") MultipartFile file, @PathVariable("storyId") Long storyId) throws Exception {
         try {
             StoryDTO updatedStory = storyService.uploadBody(file, storyId);
             return ResponseEntity.ok(updatedStory);
@@ -29,6 +29,7 @@ public class StoryController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
     }
+
 
     @GetMapping("/all-titles")
     public List<StoryTitleDTO> getAllStoryTitles() {
