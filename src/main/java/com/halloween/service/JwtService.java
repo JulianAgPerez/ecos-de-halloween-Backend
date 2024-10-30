@@ -1,6 +1,5 @@
 package com.halloween.service;
 
-
 import com.halloween.entities.User;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Decoders;
@@ -30,25 +29,26 @@ public class JwtService {
                 .getPayload()
                 .getSubject();
     }
-    public String geerateToken(final User user) {
-        return buildToken(user, jwtExpiration);
+
+    public String generateToken(final User user) {
+        return buildToken(user, refreshExpiration);
     }
 
-    public String geerateRefreshToken(final User user) {
+    public String generateRefreshToken(final User user) {
         return buildToken(user, refreshExpiration);
     }
 
     private String buildToken(final User user, final long expiration) {
-        return  Jwts.builder()
-                .id(String.valueOf(user.getId()))
+        return Jwts
+                .builder()
                 .claims(Map.of("name", user.getName()))
                 .subject(user.getEmail())
                 .issuedAt(new Date(System.currentTimeMillis()))
                 .expiration(new Date(System.currentTimeMillis() + expiration))
                 .signWith(getSignInKey())
                 .compact();
-
     }
+
     public boolean isTokenValid(String token, User user) {
         final String username = extractUsername(token);
         return (username.equals(user.getEmail())) && !isTokenExpired(token);
@@ -66,8 +66,9 @@ public class JwtService {
                 .getPayload()
                 .getExpiration();
     }
-    private SecretKey getSignInKey(){
-        byte[] keyBytes = Decoders.BASE64.decode(secretKey);
+
+    private SecretKey getSignInKey() {
+        final byte[] keyBytes = Decoders.BASE64.decode(secretKey);
         return Keys.hmacShaKeyFor(keyBytes);
     }
 }

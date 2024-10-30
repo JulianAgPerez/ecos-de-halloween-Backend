@@ -3,7 +3,7 @@ package com.halloween.config;
 import com.halloween.entities.User;
 import com.halloween.repository.UserRepository;
 import com.halloween.service.JwtService;
-import com.halloween.service.TokenRepository;
+import com.halloween.repository.TokenRepository;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -38,7 +38,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             @NonNull HttpServletResponse response,
             @NonNull FilterChain filterChain
     ) throws ServletException, IOException {
-        if (request.getServletPath().contains("/api/auth")) {
+        if (request.getServletPath().contains("/auth")) {
             filterChain.doFilter(request, response);
             return;
         }

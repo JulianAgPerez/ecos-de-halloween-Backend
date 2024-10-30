@@ -1,4 +1,4 @@
-package com.halloween.service;
+package com.halloween.repository;
 
 import com.halloween.repository.Token;
 import org.springframework.data.jpa.repository.JpaRepository;
