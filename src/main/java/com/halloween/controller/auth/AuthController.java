@@ -3,7 +3,6 @@ package com.halloween.controller.auth;
 import com.halloween.service.AuthRequest;
 import com.halloween.service.AuthService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
