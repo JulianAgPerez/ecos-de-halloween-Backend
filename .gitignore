@@ -78,3 +78,4 @@ node_modules/
 /src/test/resources/application.yml
 /src/test/resources/application-*.properties
 /src/test/resources/application-*.yml
+.env
