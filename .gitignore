@@ -43,6 +43,10 @@ out/
 # VS Code
 .vscode/
 
+# NetBeans
+nbproject/
+.nb-gradle/
+
 # Maven
 target/
 !.mvn/wrapper/maven-wrapper.jar
