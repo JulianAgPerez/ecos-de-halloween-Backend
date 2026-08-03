@@ -70,12 +70,12 @@ node_modules/
 # End of default values #
 
 # Application properties
-/src/main/resources/application.properties
-/src/main/resources/application.yml
+# Se trackean application.properties (sin secretos). Las configs por perfil quedan locales.
 /src/main/resources/application-*.properties
 /src/main/resources/application-*.yml
-/src/test/resources/application.properties
-/src/test/resources/application.yml
 /src/test/resources/application-*.properties
 /src/test/resources/application-*.yml
+
+# Archivos de entorno local (nunca se commitean)
 .env
+.env.example
