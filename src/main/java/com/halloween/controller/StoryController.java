@@ -8,12 +8,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.IOException;
 import java.util.List;
 
 @RestController
 @RequestMapping("/api/stories")
-@CrossOrigin(origins = "*", methods= {RequestMethod.GET,RequestMethod.POST})
 public class StoryController {
     private final StoryService storyService;
     public StoryController(StoryService storyService) {
@@ -22,14 +20,9 @@ public class StoryController {
 
     @PostMapping("/upload-body/{storyId}")
     public ResponseEntity<StoryDTO> uploadBody(@RequestParam("file") MultipartFile file, @PathVariable("storyId") Long storyId) throws Exception {
-        try {
-            StoryDTO updatedStory = storyService.uploadBody(file, storyId);
-            return ResponseEntity.ok(updatedStory);
-        } catch (IOException e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
-        }
+        StoryDTO updatedStory = storyService.uploadBody(file, storyId);
+        return ResponseEntity.ok(updatedStory);
     }
-
 
     @GetMapping("/all-titles")
     public List<StoryTitleDTO> getAllStoryTitles() {

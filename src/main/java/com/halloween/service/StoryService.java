@@ -52,6 +52,14 @@ public class StoryService {
     }
     @Transactional
     public StoryDTO uploadBody(MultipartFile file, Long storyId) throws IOException {
+        if (file == null || file.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "El archivo está vacío");
+        }
+        if (!"application/vnd.openxmlformats-officedocument.wordprocessingml.document".equalsIgnoreCase(file.getContentType())
+                && !file.getOriginalFilename().toLowerCase().endsWith(".docx")) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Solo se permiten archivos .docx");
+        }
+
         // Leer el contenido del archivo Word como String
         StringBuilder fileContent = new StringBuilder();
 
@@ -63,7 +71,7 @@ public class StoryService {
 
         // Encontrar la historia por ID
         Story story = storyRepository.findById(storyId)
-                .orElseThrow(() -> new RuntimeException("Story not found"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Cuento no encontrado"));
 
         // Asignar el contenido del archivo como String
         story.setBody(fileContent.toString()); // Ahora es String
@@ -93,10 +101,4 @@ public class StoryService {
     private StoryTitleDTO convertToTitleDTO(Story story){
         return new StoryTitleDTO(story.getId(), story.getTitle());
     }
-
-    private Story converToEntity(StoryTitleDTO storyTitleDTO){
-        return new Story(storyTitleDTO.getId(), storyTitleDTO.getTitle(), null,null,null,null);
-    }
-
-
 }
