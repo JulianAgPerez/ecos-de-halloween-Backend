@@ -1,0 +1,9 @@
+.git
+.gitignore
+.gradle
+.idea
+.env
+build
+out
+HELP.md
+*.md
