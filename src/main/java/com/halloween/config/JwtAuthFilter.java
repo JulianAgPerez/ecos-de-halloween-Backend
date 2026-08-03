@@ -50,7 +50,13 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         }
 
         final String jwt = authHeader.substring(7);
-        final String userEmail = jwtService.extractUsername(jwt);
+        final String userEmail;
+        try {
+            userEmail = jwtService.extractUsername(jwt);
+        } catch (Exception e) {
+            filterChain.doFilter(request, response);
+            return;
+        }
         final Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (userEmail == null || authentication != null) {
             filterChain.doFilter(request, response);
@@ -58,12 +64,12 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         }
 
         final UserDetails userDetails = this.userDetailsService.loadUserByUsername(userEmail);
-        final boolean isTokenExpiredOrRevoked = tokenRepository.findByToken(jwt)
+        final boolean isStoredTokenValid = tokenRepository.findByToken(jwt)
                 .map(token -> !token.isExpired() && !token.isRevoked())
                 .orElse(false);
 
 
-        if (isTokenExpiredOrRevoked) {
+        if (isStoredTokenValid) {
             final Optional<User> user = userRepository.findByEmail(userEmail);
 
             if (user.isPresent()) {
