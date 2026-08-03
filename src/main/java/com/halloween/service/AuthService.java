@@ -6,21 +6,17 @@ import com.halloween.controller.auth.TokenResponse;
 import com.halloween.repository.Token;
 import com.halloween.repository.TokenRepository;
 import com.halloween.repository.UserRepository;
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.io.Decoders;
-import io.jsonwebtoken.security.Keys;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
-import javax.crypto.SecretKey;
-import java.util.Date;
 import java.util.List;
 
 @Service
@@ -31,9 +27,6 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final AuthenticationManager authenticationManager;
-
-    @Value("${application.secret-key}")
-    private String secretKey;
 
     @Transactional
     public TokenResponse register(final RegisterRequest request) {
@@ -65,11 +58,11 @@ public class AuthService {
                     )
             );
         } catch (AuthenticationException e) {
-            throw new IllegalArgumentException("Invalid email or password");
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid email or password");
         }
 
         final User user = repository.findByEmail(request.email())
-                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid email or password"));
         final String accessToken = jwtService.generateToken(user);
         final String refreshToken = jwtService.generateRefreshToken(user);
         revokeAllUserTokens(user);
@@ -110,10 +103,10 @@ public class AuthService {
         }
 
         final User user = this.repository.findByEmail(userEmail)
-                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found"));
         final boolean isTokenValid = jwtService.isTokenValid(refreshToken, user);
         if (!isTokenValid) {
-            throw new IllegalArgumentException("Invalid refresh token");
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid refresh token");
         }
 
         final String accessToken = jwtService.generateToken(user);
@@ -121,28 +114,5 @@ public class AuthService {
         saveUserToken(user, accessToken);
 
         return new TokenResponse(accessToken, refreshToken);
-    }
-
-    public boolean isTokenValid(String token, User user) {
-        final String username = jwtService.extractUsername(token);
-        return (username.equals(user.getEmail())) && !isTokenExpired(token);
-    }
-
-    private boolean isTokenExpired(String token) {
-        return extractExpiration(token).before(new Date());
-    }
-
-    private Date extractExpiration(String token) {
-        return Jwts.parser()
-                .setSigningKey(getSignInKey())
-                .build()
-                .parseClaimsJws(token)
-                .getBody()
-                .getExpiration();
-    }
-
-    private SecretKey getSignInKey() {
-        final byte[] keyBytes = Decoders.BASE64.decode(secretKey);
-        return Keys.hmacShaKeyFor(keyBytes);
     }
 }

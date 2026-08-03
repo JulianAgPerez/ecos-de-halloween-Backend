@@ -2,6 +2,7 @@ package com.halloween.service;
 
 import com.halloween.entities.User;
 import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
@@ -10,6 +11,7 @@ import org.springframework.stereotype.Service;
 import javax.crypto.SecretKey;
 import java.util.Date;
 import java.util.Map;
+import java.util.UUID;
 
 @Service
 public class JwtService {
@@ -31,7 +33,7 @@ public class JwtService {
     }
 
     public String generateToken(final User user) {
-        return buildToken(user, refreshExpiration);
+        return buildToken(user, jwtExpiration);
     }
 
     public String generateRefreshToken(final User user) {
@@ -41,6 +43,7 @@ public class JwtService {
     private String buildToken(final User user, final long expiration) {
         return Jwts
                 .builder()
+                .id(UUID.randomUUID().toString())
                 .claims(Map.of("name", user.getName()))
                 .subject(user.getEmail())
                 .issuedAt(new Date(System.currentTimeMillis()))
@@ -50,8 +53,12 @@ public class JwtService {
     }
 
     public boolean isTokenValid(String token, User user) {
-        final String username = extractUsername(token);
-        return (username.equals(user.getEmail())) && !isTokenExpired(token);
+        try {
+            final String username = extractUsername(token);
+            return (username.equals(user.getEmail())) && !isTokenExpired(token);
+        } catch (JwtException | IllegalArgumentException e) {
+            return false;
+        }
     }
 
     private boolean isTokenExpired(String token) {
