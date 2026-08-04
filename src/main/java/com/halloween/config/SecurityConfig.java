@@ -33,6 +33,7 @@ public class SecurityConfig {
                                 .requestMatchers("/auth/login", "/auth/refresh").permitAll()
                                 .requestMatchers(HttpMethod.POST, "/auth/register").denyAll()
                                 .requestMatchers(HttpMethod.GET, "/api/stories/**").permitAll()
+                                .requestMatchers(HttpMethod.GET, "/api/classics/**").permitAll()
                                 .requestMatchers(HttpMethod.POST, "/api/stories/**").authenticated()
                                 .requestMatchers(HttpMethod.PUT, "/api/stories/**").authenticated()
                                 .anyRequest().authenticated()
