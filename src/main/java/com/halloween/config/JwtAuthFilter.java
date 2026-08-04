@@ -38,7 +38,10 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             @NonNull HttpServletResponse response,
             @NonNull FilterChain filterChain
     ) throws ServletException, IOException {
-        if (request.getServletPath().contains("/auth")) {
+        final String requestPath = request.getRequestURI() != null
+                ? request.getRequestURI()
+                : request.getServletPath();
+        if (requestPath.contains("/auth")) {
             filterChain.doFilter(request, response);
             return;
         }
@@ -54,7 +57,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         try {
             userEmail = jwtService.extractUsername(jwt);
         } catch (Exception e) {
-            filterChain.doFilter(request, response);
+            writeUnauthorized(response, "Token invalido o con formato incorrecto. Volve a iniciar sesion.");
             return;
         }
         final Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -67,7 +70,6 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         final boolean isStoredTokenValid = tokenRepository.findByToken(jwt)
                 .map(token -> !token.isExpired() && !token.isRevoked())
                 .orElse(false);
-
 
         if (isStoredTokenValid) {
             final Optional<User> user = userRepository.findByEmail(userEmail);
@@ -85,10 +87,26 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                             new WebAuthenticationDetailsSource().buildDetails(request)
                     );
                     SecurityContextHolder.getContext().setAuthentication(authToken);
+                } else {
+                    writeUnauthorized(response, "Token expirado o invalido. Volve a iniciar sesion.");
+                    return;
                 }
+            } else {
+                writeUnauthorized(response, "Usuario del token no encontrado. Volve a iniciar sesion.");
+                return;
             }
+        } else {
+            writeUnauthorized(response, "Token no registrado, revocado o expirado. Volve a iniciar sesion.");
+            return;
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    private void writeUnauthorized(HttpServletResponse response, String message) throws IOException {
+        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+        response.setContentType("application/json");
+        response.setCharacterEncoding("UTF-8");
+        response.getWriter().write("{\"error\":\"" + message + "\"}");
     }
 }

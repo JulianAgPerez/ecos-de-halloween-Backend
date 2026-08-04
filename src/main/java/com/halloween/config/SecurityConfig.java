@@ -42,7 +42,15 @@ public class SecurityConfig {
                             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                             response.setContentType("application/json");
                             response.setCharacterEncoding("UTF-8");
-                            response.getWriter().write("{\"error\":\"Unauthorized\"}");
+                            response.getWriter().write(
+                                    "{\"error\":\"Debes iniciar sesion para acceder a este recurso. Incluye el header 'Authorization: Bearer <token>'.\"}");
+                        })
+                        .accessDeniedHandler((request, response, accessDeniedException) -> {
+                            response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                            response.setContentType("application/json");
+                            response.setCharacterEncoding("UTF-8");
+                            response.getWriter().write(
+                                    "{\"error\":\"Acceso denegado. El token es invalido, expiro, fue revocado o no tienes permisos para esta accion. Volve a iniciar sesion.\"}");
                         })
                 )
                 .cors();

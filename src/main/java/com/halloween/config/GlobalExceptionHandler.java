@@ -7,6 +7,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
@@ -38,18 +39,27 @@ public class GlobalExceptionHandler {
                 .body(Map.of("error", "Not found"));
     }
 
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<Map<String, String>> handleUnreadableMessage(HttpMessageNotReadableException e) {
+        return ResponseEntity
+                .badRequest()
+                .body(Map.of("error", "Cuerpo de la peticion invalido o JSON mal formado", "message", e.getMessage()));
+    }
+
     @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
     public ResponseEntity<Map<String, String>> handleMethodNotSupported(HttpRequestMethodNotSupportedException e) {
         return ResponseEntity
                 .status(HttpStatus.METHOD_NOT_ALLOWED)
-                .body(Map.of("error", "Method not allowed"));
+                .body(Map.of("error", "Metodo HTTP no soportado para esta ruta", "message", e.getMessage()));
     }
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, String>> handleException(Exception e) {
         log.error("Unhandled exception", e);
+        String message = e.getClass().getSimpleName()
+                + (e.getMessage() != null ? ": " + e.getMessage() : "");
         return ResponseEntity
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(Map.of("error", "Internal server error"));
+                .body(Map.of("error", "Internal server error", "message", message));
     }
 }
