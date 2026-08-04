@@ -43,6 +43,11 @@ dependencies {
 	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.3.0'
 	// Validation
 	implementation 'org.springframework.boot:spring-boot-starter-validation:3.3.4'
+	// Para limpiar HTML de Wikisource
+	implementation 'org.jsoup:jsoup:1.17.2'
+	// Caché para historias clásicas
+	implementation 'org.springframework.boot:spring-boot-starter-cache'
+	implementation 'com.github.ben-manes.caffeine:caffeine'
 	// Testing
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testImplementation 'org.springframework.security:spring-security-test:6.3.0'
