@@ -18,6 +18,8 @@ class WikisourceHtmlCleanerTest {
                 <img src="descargar.png" alt="Descargar como" /> Descargar como
                 </div>
                 <div id="ws-data" class="ws-noexport" style="display:none"><span class="ws-year">1885</span></div>
+                <span title="El gato negro (de Verneuil tr.) - español" class="interwiki-extra" style="display:none;" lang="es"><a href="/wiki/El_gato_negro_(de_Verneuil_tr.)">El gato negro (de Verneuil tr.)</a></span>
+                <span title="Tales (Poe)/The Black Cat - inglés" class="interwiki-extra" style="display:none;" lang="en"><a href="https://en.wikisource.org/wiki/Tales_(Poe)/The_Black_Cat">English</a></span>
                 <p><br /></p>
                 <div class="ws-div" style="text-align:center;"><b>EL MONTE DE LAS ÁNIMAS</b></div>
                 <p><span class="dropinitial"><span typeof="mw:File"><img alt="L" src="letra.png" /></span></span><span style="font-variant: small-caps;">a</span> noche de difuntos me despertó.</p>
@@ -37,6 +39,8 @@ class WikisourceHtmlCleanerTest {
         assertThat(result).doesNotContain("El Beso");
         assertThat(result).doesNotContain("Obras de Becquer");
         assertThat(result).doesNotContain("1885");
+        assertThat(result).doesNotContain("Verneuil");
+        assertThat(result).doesNotContain("English");
     }
 
     @Test
