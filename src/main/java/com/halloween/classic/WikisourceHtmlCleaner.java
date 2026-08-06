@@ -26,7 +26,7 @@ public class WikisourceHtmlCleaner {
 
         doc.select("style, script").remove();
         doc.select("#headertemplate, #ws-data, #conv-idiomas, figure, img, sup, table").remove();
-        doc.select(".noprint, .noexcerpt, .toc, .navbox, .infobox, .metadata, .thumb, .hatnote, .portal, .mw-editsection, .mw-empty-elt, .pagenum, .np, .references, .ws-noexport").remove();
+        doc.select(".noprint, .noexcerpt, .toc, .navbox, .infobox, .metadata, .thumb, .hatnote, .portal, .mw-editsection, .mw-empty-elt, .pagenum, .np, .references, .ws-noexport, .interwiki-extra").remove();
 
         Element container = doc.selectFirst(".prp-pages-output");
         if (container == null) {
