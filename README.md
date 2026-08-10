@@ -3,7 +3,7 @@
 
 ## Descripción 📝
 
-Este proyecto surje de combinar mi pasión por programar, por la escritura y mmi amor por el halloween. Es una plataforma tipo blog en la que publicare unos cuantos cuentos cortos que he escrito hace tiempo, pero con la característica de tener animaciones de fondo, sonido ambiental y la posibilidad de escuchar canciones/playlist de spotify con las que he escrito cada cuento (o en su defecto, que siento que es compatible con la historia y el ritmo de lectura).
+Este proyecto surje de combinar mi pasión por programar, por la escritura y mi amor por el halloween. Es una plataforma tipo blog en la que publicare unos cuantos cuentos cortos que he escrito hace tiempo, pero con la característica de tener animaciones de fondo, sonido ambiental y la posibilidad de escuchar canciones/playlist de spotify con las que he escrito cada cuento (o en su defecto, que siento que es compatible con la historia y el ritmo de lectura).
 
 Los administradores (yo) pueden subir y gestionar cuentos, mientras que los visitantes pueden leerlos y disfrutar de las funcionalidades interactivas.
 
