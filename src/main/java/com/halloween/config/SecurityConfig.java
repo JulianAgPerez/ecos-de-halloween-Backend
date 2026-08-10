@@ -30,6 +30,7 @@ public class SecurityConfig {
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
                 .authorizeHttpRequests(authorizeRequests ->
                         authorizeRequests
+                                .requestMatchers("/health").permitAll()
                                 .requestMatchers("/auth/login", "/auth/refresh").permitAll()
                                 .requestMatchers(HttpMethod.POST, "/auth/register").denyAll()
                                 .requestMatchers(HttpMethod.GET, "/api/stories/**").permitAll()
