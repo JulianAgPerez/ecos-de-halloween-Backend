@@ -17,15 +17,18 @@ public class ClassicStoryService {
     private final WikisourceClient wikisourceClient;
     private final WikisourceHtmlCleaner htmlCleaner;
     private final String baseUrl;
+    private final int minBodyLength;
 
     public ClassicStoryService(ClassicCatalogProvider catalogProvider,
                                WikisourceClient wikisourceClient,
                                WikisourceHtmlCleaner htmlCleaner,
-                               @Value("${wikisource.api.base-url}") String baseUrl) {
+                               @Value("${wikisource.api.base-url}") String baseUrl,
+                               @Value("${classic.min-body-length:1000}") int minBodyLength) {
         this.catalogProvider = catalogProvider;
         this.wikisourceClient = wikisourceClient;
         this.htmlCleaner = htmlCleaner;
         this.baseUrl = baseUrl;
+        this.minBodyLength = minBodyLength;
     }
 
     public List<ClassicStoryDTO> getAll() {
@@ -41,6 +44,10 @@ public class ClassicStoryService {
 
         String html = wikisourceClient.fetchPageHtml(entry.getSlug());
         String body = htmlCleaner.clean(html);
+        if (body == null || body.strip().length() < minBodyLength) {
+            throw new ResponseStatusException(HttpStatus.BAD_GATEWAY,
+                    "La página de Wikisource no contiene el texto de la historia");
+        }
 
         ClassicStoryDTO dto = toSummary(entry);
         dto.setBody(body);

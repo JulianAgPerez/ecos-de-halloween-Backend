@@ -59,6 +59,30 @@ class ClassicStoryControllerIntegrationTest {
     }
 
     @Test
+    void getBySlug_usherPointsToRealTextPage() throws Exception {
+        mockMvc.perform(get("/api/classics/{slug}", "La ruina de la Casa de Úsher (Pinillos tr.)"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.title").value("La caída de la casa Usher"))
+                .andExpect(jsonPath("$.body").value(containsString("noche de difuntos")));
+    }
+
+    @Test
+    void getBySlug_prematureBurialPointsToRealTextPage() throws Exception {
+        mockMvc.perform(get("/api/classics/{slug}", "Enterrado vivo"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.title").value("El entierro prematuro"))
+                .andExpect(jsonPath("$.body").value(containsString("noche de difuntos")));
+    }
+
+    @Test
+    void getBySlug_oldBrokenSlugs_returns404() throws Exception {
+        mockMvc.perform(get("/api/classics/{slug}", "La caída de la casa Usher"))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(get("/api/classics/{slug}", "El entierro prematuro"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
     void getBySlug_unknown_returns404() throws Exception {
         mockMvc.perform(get("/api/classics/{slug}", "no-existe"))
                 .andExpect(status().isNotFound())

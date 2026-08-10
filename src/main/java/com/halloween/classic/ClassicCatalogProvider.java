@@ -43,10 +43,10 @@ public class ClassicCatalogProvider {
             entry("El barril de amontillado (Cano y Cueto tr.)", "El barril de amontillado", "Edgar Allan Poe", "Manuel Cano y Cueto", 1871, LICENSE_PUBLIC_DOMAIN),
             entry("El escarabajo de oro (Cano y Cueto tr.)", "El escarabajo de oro", "Edgar Allan Poe", "Manuel Cano y Cueto", 1871, LICENSE_PUBLIC_DOMAIN),
             entry("El retrato oval (Cano y Cueto tr.)", "El retrato oval", "Edgar Allan Poe", "Manuel Cano y Cueto", 1871, LICENSE_PUBLIC_DOMAIN),
-            entry("El entierro prematuro", "Edgar Allan Poe", "Manuel Cano y Cueto", 1871, LICENSE_PUBLIC_DOMAIN),
+            entry("Enterrado vivo", "El entierro prematuro", "Edgar Allan Poe", "Manuel Cano y Cueto", 1871, LICENSE_PUBLIC_DOMAIN),
             entry("El pozo y el péndulo (Olivera tr.)", "El pozo y el péndulo", "Edgar Allan Poe", "Carlos Olivera", 1884, LICENSE_PUBLIC_DOMAIN),
             entry("La carta robada (Olivera tr.)", "La carta robada", "Edgar Allan Poe", "Carlos Olivera", 1884, LICENSE_PUBLIC_DOMAIN),
-            entry("La caída de la casa Usher", "Edgar Allan Poe", "Carmen Torres Calderón de Pinillos", 1919, LICENSE_PUBLIC_DOMAIN),
+            entry("La ruina de la Casa de Úsher (Pinillos tr.)", "La caída de la casa Usher", "Edgar Allan Poe", "Carmen Torres Calderón de Pinillos", 1919, LICENSE_PUBLIC_DOMAIN),
             entry("El crimen de la Rue Morgue", "Edgar Allan Poe", "Carmen Torres Calderón de Pinillos", 1919, LICENSE_PUBLIC_DOMAIN),
             entry("La máscara de la muerte", "Edgar Allan Poe", "Carmen Torres Calderón de Pinillos", 1919, LICENSE_PUBLIC_DOMAIN),
 

@@ -21,8 +21,12 @@ class ClassicStoryServiceTest {
     @Mock private WikisourceClient wikisourceClient;
     @Mock private WikisourceHtmlCleaner htmlCleaner;
 
+    private ClassicStoryService service(int minBodyLength) {
+        return new ClassicStoryService(catalogProvider, wikisourceClient, htmlCleaner, "https://es.wikisource.org", minBodyLength);
+    }
+
     private ClassicStoryService service() {
-        return new ClassicStoryService(catalogProvider, wikisourceClient, htmlCleaner, "https://es.wikisource.org");
+        return service(1000);
     }
 
     private ClassicStoryDTO entry() {
@@ -50,10 +54,22 @@ class ClassicStoryServiceTest {
         when(wikisourceClient.fetchPageHtml("El gato negro (Cano y Cueto tr.)")).thenReturn("<p>Era un gato.</p>");
         when(htmlCleaner.clean("<p>Era un gato.</p>")).thenReturn("Era un gato.");
 
-        ClassicStoryDTO dto = service().getStory("El gato negro (Cano y Cueto tr.)");
+        ClassicStoryDTO dto = service(1).getStory("El gato negro (Cano y Cueto tr.)");
 
         assertThat(dto.getBody()).isEqualTo("Era un gato.");
         assertThat(dto.getLicense()).isEqualTo(ClassicCatalogProvider.LICENSE_PUBLIC_DOMAIN);
+    }
+
+    @Test
+    void getStory_shortBody_throwsBadGateway() {
+        when(catalogProvider.findBySlug("El gato negro (Cano y Cueto tr.)")).thenReturn(Optional.of(entry()));
+        when(wikisourceClient.fetchPageHtml("El gato negro (Cano y Cueto tr.)")).thenReturn("<p>Era un gato.</p>");
+        when(htmlCleaner.clean("<p>Era un gato.</p>")).thenReturn("Era un gato.");
+
+        assertThatThrownBy(() -> service().getStory("El gato negro (Cano y Cueto tr.)"))
+                .isInstanceOf(ResponseStatusException.class)
+                .extracting("status")
+                .isEqualTo(HttpStatus.BAD_GATEWAY);
     }
 
     @Test
@@ -76,7 +92,7 @@ class ClassicStoryServiceTest {
         when(wikisourceClient.fetchPageHtml("El templo (H. P. Lovecraft)")).thenReturn("<p>Texto.</p>");
         when(htmlCleaner.clean("<p>Texto.</p>")).thenReturn("Texto.");
 
-        ClassicStoryDTO dto = service().getStory("El templo (H. P. Lovecraft)");
+        ClassicStoryDTO dto = service(1).getStory("El templo (H. P. Lovecraft)");
 
         assertThat(dto.getLicense()).isEqualTo(ClassicCatalogProvider.LICENSE_CC_BY_SA);
         assertThat(dto.getLicenseUrl()).isEqualTo("https://creativecommons.org/licenses/by-sa/4.0/deed.es");
