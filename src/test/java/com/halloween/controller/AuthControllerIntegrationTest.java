@@ -156,6 +156,24 @@ class AuthControllerIntegrationTest {
                 .andExpect(status().isUnauthorized());
     }
 
+    @Test
+    void securityChain_isStateless_noSessionCookieIssued() throws Exception {
+        MvcResult loginResult = mockMvc.perform(post("/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"email":"admin@test.com","password":"plainpass"}
+                                """))
+                .andExpect(status().isOk())
+                .andReturn();
+        assertThat(loginResult.getRequest().getSession(false)).isNull();
+        assertThat(loginResult.getResponse().getCookie("JSESSIONID")).isNull();
+
+        MvcResult deniedResult = mockMvc.perform(post("/api/stories"))
+                .andExpect(status().isUnauthorized())
+                .andReturn();
+        assertThat(deniedResult.getResponse().getCookie("JSESSIONID")).isNull();
+    }
+
     private JsonNode login() throws Exception {
         MvcResult loginResult = mockMvc.perform(post("/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
