@@ -1,5 +1,6 @@
 package com.halloween.config;
 
+import io.jsonwebtoken.JwtException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -8,6 +9,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.bind.ServletRequestBindingException;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
@@ -30,6 +32,21 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .badRequest()
                 .body(Map.of("error", e.getMessage() != null ? e.getMessage() : "Bad request"));
+    }
+
+    @ExceptionHandler(JwtException.class)
+    public ResponseEntity<Map<String, String>> handleJwtException(JwtException e) {
+        log.warn("Rejected invalid JWT: {}", e.getClass().getSimpleName());
+        return ResponseEntity
+                .status(HttpStatus.UNAUTHORIZED)
+                .body(Map.of("error", "Invalid or expired token"));
+    }
+
+    @ExceptionHandler(ServletRequestBindingException.class)
+    public ResponseEntity<Map<String, String>> handleServletRequestBinding(ServletRequestBindingException e) {
+        return ResponseEntity
+                .badRequest()
+                .body(Map.of("error", "Missing or invalid request header"));
     }
 
     @ExceptionHandler(NoResourceFoundException.class)

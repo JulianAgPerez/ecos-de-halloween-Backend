@@ -4,6 +4,9 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.halloween.entities.User;
 import com.halloween.repository.UserRepository;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.io.Decoders;
+import io.jsonwebtoken.security.Keys;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -172,6 +175,35 @@ class AuthControllerIntegrationTest {
                 .andExpect(status().isUnauthorized())
                 .andReturn();
         assertThat(deniedResult.getResponse().getCookie("JSESSIONID")).isNull();
+    }
+
+    @Test
+    void refresh_withoutAuthorizationHeader_returns400() throws Exception {
+        mockMvc.perform(post("/auth/refresh"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void refresh_withGarbageBearerToken_returns401() throws Exception {
+        mockMvc.perform(post("/auth/refresh")
+                        .header("Authorization", "Bearer this-is-not-a-jwt"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void refresh_withExpiredRefreshToken_returns401() throws Exception {
+        String expiredRefresh = Jwts.builder()
+                .subject("admin@test.com")
+                .claim("type", "REFRESH")
+                .issuedAt(new java.util.Date(System.currentTimeMillis() - 10_000))
+                .expiration(new java.util.Date(System.currentTimeMillis() - 5_000))
+                .signWith(Keys.hmacShaKeyFor(Decoders.BASE64.decode(
+                        "dGVzdC1qd3Qtc2VjcmV0LWtleS1mb3ItZWNvcy1kZS1oYWxsb3dlZW4tYXVkaXQtMjAyNi0wMTIzNDU2Nzg5")))
+                .compact();
+
+        mockMvc.perform(post("/auth/refresh")
+                        .header("Authorization", "Bearer " + expiredRefresh))
+                .andExpect(status().isUnauthorized());
     }
 
     private JsonNode login() throws Exception {
