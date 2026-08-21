@@ -9,8 +9,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 6
     steps:
-      # Backup del keep-alive. El cron principal vive en Cron-job.org/UptimeRobot
-      # (disparo a nivel minuto, fuera de la cola de GitHub Actions).
-      # Cold starts de Render free pueden superar 60s, por eso -m 300 + retries.
+      # Backup keep-alive. The primary cron lives in Cron-job.org/UptimeRobot.
+      # --fail makes HTTP >= 400 (and connect errors) fail the step instead of
+      # reporting a green run. Timeout budget: worst case is 3 attempts x 60s
+      # plus retry delays, ~190s total, which fits timeout-minutes: 6.
       - name: Ping backend
-        run: curl -sS -m 300 --retry 2 --retry-delay 5 -o /dev/null -w "%{http_code}" https://ecos-de-halloween.onrender.com/health
+        run: curl --fail --show-error --silent -m 60 --retry 2 --retry-delay 5 -o /dev/null https://ecos-de-halloween.onrender.com/health
