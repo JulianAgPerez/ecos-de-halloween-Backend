@@ -53,11 +53,22 @@ public class StoryService {
     public StoryDTO updateStory(Long id, StoryDTO storyDTO){
         Story story = storyRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,"Cuento no encontrado"));
-        story.setTitle(storyDTO.getTitle());
-        story.setDescription(storyDTO.getDescription());
-        story.setAudioUrl(storyDTO.getAudioUrl());
-        story.setBackgroundImageUrl(storyDTO.getBackgroundImageUrl());
-        story.setBody(storyDTO.getBody());
+        // Null fields in the PUT body mean "keep the existing value", not "wipe it".
+        if (storyDTO.getTitle() != null) {
+            story.setTitle(storyDTO.getTitle());
+        }
+        if (storyDTO.getDescription() != null) {
+            story.setDescription(storyDTO.getDescription());
+        }
+        if (storyDTO.getAudioUrl() != null) {
+            story.setAudioUrl(storyDTO.getAudioUrl());
+        }
+        if (storyDTO.getBackgroundImageUrl() != null) {
+            story.setBackgroundImageUrl(storyDTO.getBackgroundImageUrl());
+        }
+        if (storyDTO.getBody() != null) {
+            story.setBody(storyDTO.getBody());
+        }
 
         return convertToDTO(storyRepository.save(story));
     }

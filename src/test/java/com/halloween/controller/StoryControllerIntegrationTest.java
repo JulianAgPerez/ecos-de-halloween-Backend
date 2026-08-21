@@ -160,6 +160,28 @@ class StoryControllerIntegrationTest {
     }
 
     @Test
+    void updateStory_withOnlyTitleKeepsOtherFieldsIntact() throws Exception {
+        Story story = storyRepository.save(new Story(null, "Titulo", "Desc", "audio.mp3", "bg.png", "cuerpo"));
+
+        mockMvc.perform(put("/api/stories/" + story.getId())
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"title":"Editada"}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.title").value("Editada"))
+                .andExpect(jsonPath("$.description").value("Desc"))
+                .andExpect(jsonPath("$.audioUrl").value("audio.mp3"))
+                .andExpect(jsonPath("$.body").value("cuerpo"));
+
+        Story reloaded = storyRepository.findById(story.getId()).orElseThrow();
+        assertThat(reloaded.getDescription()).isEqualTo("Desc");
+        assertThat(reloaded.getAudioUrl()).isEqualTo("audio.mp3");
+        assertThat(reloaded.getBody()).isEqualTo("cuerpo");
+    }
+
+    @Test
     void uploadBody_withoutToken_returns401() throws Exception {
         Story story = storyRepository.save(new Story(null, "Titulo", "Desc", null, null, "cuerpo"));
         MockMultipartFile file = new MockMultipartFile("file", "story.docx",

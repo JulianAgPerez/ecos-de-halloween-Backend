@@ -98,6 +98,22 @@ class StoryServiceTest {
     }
 
     @Test
+    void updateStory_nullFieldsKeepExistingValues() {
+        Story existing = story();
+        StoryDTO input = new StoryDTO(1L, "Titulo nuevo", null, null, null, null);
+        when(storyRepository.findById(1L)).thenReturn(Optional.of(existing));
+        when(storyRepository.save(any(Story.class))).thenReturn(existing);
+
+        StoryDTO dto = storyService.updateStory(1L, input);
+
+        assertThat(dto.getTitle()).isEqualTo("Titulo nuevo");
+        assertThat(dto.getDescription()).isEqualTo("Un cuento");
+        assertThat(dto.getAudioUrl()).isEqualTo("audio.mp3");
+        assertThat(dto.getBackgroundImageUrl()).isEqualTo("bg.png");
+        assertThat(dto.getBody()).isEqualTo("Habia una vez...");
+    }
+
+    @Test
     void getAllStoryTitles_usesTitleProjectionWithoutLoadingBodies() {
         StoryRepository.StoryTitleView view = new StoryRepository.StoryTitleView() {
             @Override public Long getId() { return 1L; }
