@@ -178,6 +178,16 @@ class AuthControllerIntegrationTest {
     }
 
     @Test
+    void login_withMalformedJson_returns400WithGenericBody() throws Exception {
+        mockMvc.perform(post("/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{not-json"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("Malformed request body"))
+                .andExpect(jsonPath("$.message").doesNotExist());
+    }
+
+    @Test
     void refresh_withoutAuthorizationHeader_returns400() throws Exception {
         mockMvc.perform(post("/auth/refresh"))
                 .andExpect(status().isBadRequest());
