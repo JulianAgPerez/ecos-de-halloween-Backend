@@ -9,6 +9,7 @@ import com.halloween.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
@@ -74,6 +75,23 @@ class AuthServiceTest {
         assertThat(response.refreshToken()).isEqualTo("refresh");
         verify(repository).save(any(User.class));
         verify(tokenRepository).save(any(Token.class));
+    }
+
+    @Test
+    void register_storesTokenAsSha256DigestWithCreationTimestamp() {
+        when(repository.existsByEmail("admin@test.com")).thenReturn(false);
+        when(repository.save(any(User.class))).thenReturn(user());
+        when(jwtService.generateToken(user())).thenReturn("access");
+        when(jwtService.generateRefreshToken(user())).thenReturn("refresh");
+
+        authService.register(new RegisterRequest("Admin", "plainpass", "admin@test.com"));
+
+        final ArgumentCaptor<Token> tokenCaptor = ArgumentCaptor.forClass(Token.class);
+        verify(tokenRepository).save(tokenCaptor.capture());
+        final Token stored = tokenCaptor.getValue();
+        assertThat(stored.getToken()).isEqualTo(TokenHasher.sha256("access"));
+        assertThat(stored.getToken()).isNotEqualTo("access");
+        assertThat(stored.getCreatedAt()).isNotNull();
     }
 
     @Test

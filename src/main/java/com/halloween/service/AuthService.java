@@ -18,6 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.Instant;
 import java.util.List;
 
 @Service
@@ -74,10 +75,13 @@ public class AuthService {
     private void saveUserToken(User user, String jwtToken) {
         final Token token = Token.builder()
                 .user(user)
-                .token(jwtToken)
+                // NOTE: tokens are stored as SHA-256 digests, not raw JWTs. Pre-existing plaintext
+                // rows will no longer match any lookup; affected users simply log in again.
+                .token(TokenHasher.sha256(jwtToken))
                 .tokenType(Token.TokenType.BEARER)
                 .expired(false)
                 .revoked(false)
+                .createdAt(Instant.now())
                 .build();
         tokenRepository.save(token);
     }

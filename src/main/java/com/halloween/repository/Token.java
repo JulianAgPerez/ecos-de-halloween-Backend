@@ -4,6 +4,8 @@ import com.halloween.entities.User;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.time.Instant;
+
 @Data
 @Builder
 @NoArgsConstructor
@@ -26,6 +28,9 @@ public final class Token {
 
     @Column(nullable = false)
     private boolean expired;
+
+    @Column(name = "created_at", nullable = false)
+    private Instant createdAt;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")

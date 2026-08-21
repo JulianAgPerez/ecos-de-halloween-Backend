@@ -3,6 +3,7 @@ package com.halloween.config;
 import com.halloween.entities.User;
 import com.halloween.repository.UserRepository;
 import com.halloween.service.JwtService;
+import com.halloween.service.TokenHasher;
 import com.halloween.repository.TokenRepository;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -67,7 +68,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         }
 
         final UserDetails userDetails = this.userDetailsService.loadUserByUsername(userEmail);
-        final boolean isStoredTokenValid = tokenRepository.findByToken(jwt)
+        final boolean isStoredTokenValid = tokenRepository.findByToken(TokenHasher.sha256(jwt))
                 .map(token -> !token.isExpired() && !token.isRevoked())
                 .orElse(false);
 
