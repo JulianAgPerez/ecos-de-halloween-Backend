@@ -146,7 +146,66 @@ class StoryServiceTest {
                 .isEqualTo(HttpStatus.BAD_REQUEST);
     }
 
+    @Test
+    void uploadBody_withNullFilename_throws400() throws Exception {
+        MockMultipartFile file = new MockMultipartFile("file", null,
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document", validDocxBytes("contenido"));
+
+        assertThatThrownBy(() -> storyService.uploadBody(file, 1L))
+                .isInstanceOf(ResponseStatusException.class)
+                .extracting("status")
+                .isEqualTo(HttpStatus.BAD_REQUEST);
+    }
+
+    @Test
+    void uploadBody_withDocxExtensionButNoMagicBytes_throws400() {
+        MockMultipartFile file = new MockMultipartFile("file", "falso.docx",
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "esto no es un zip".getBytes());
+
+        assertThatThrownBy(() -> storyService.uploadBody(file, 1L))
+                .isInstanceOf(ResponseStatusException.class)
+                .extracting("status")
+                .isEqualTo(HttpStatus.BAD_REQUEST);
+    }
+
+    @Test
+    void uploadBody_withCorruptDocxBytes_throws400() {
+        byte[] corrupt = new byte[]{0x50, 0x4B, 0x03, 0x04, 0x00, 0x01, 0x02, 0x03, 0x04, 0x05};
+        MockMultipartFile file = new MockMultipartFile("file", "roto.docx",
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document", corrupt);
+
+        assertThatThrownBy(() -> storyService.uploadBody(file, 1L))
+                .isInstanceOf(ResponseStatusException.class)
+                .extracting("status")
+                .isEqualTo(HttpStatus.BAD_REQUEST);
+    }
+
+    @Test
+    void uploadBody_withOversizedText_throws400DocumentTooLarge() throws Exception {
+        // Random characters keep the docx from being highly compressible, so POI's
+        // zip-bomb detector stays quiet and the extracted-text cap is what rejects it.
+        java.util.Random random = new java.util.Random(42);
+        String alphabet = "abcdefghijklmnopqrstuvwxyz ";
+        StringBuilder oversized = new StringBuilder();
+        while (oversized.length() <= 500_000) {
+            oversized.append(alphabet.charAt(random.nextInt(alphabet.length())));
+        }
+        MockMultipartFile file = new MockMultipartFile("file", "grande.docx",
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document", validDocxBytes(oversized.toString()));
+
+        assertThatThrownBy(() -> storyService.uploadBody(file, 1L))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("Document too large");
+    }
+
     private MockMultipartFile validDocx(String content) throws Exception {
+        return new MockMultipartFile(
+                "file", "story.docx",
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                validDocxBytes(content));
+    }
+
+    private byte[] validDocxBytes(String content) throws Exception {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         try (XWPFDocument document = new XWPFDocument()) {
             XWPFParagraph paragraph = document.createParagraph();
@@ -154,9 +213,6 @@ class StoryServiceTest {
             run.setText(content);
             document.write(baos);
         }
-        return new MockMultipartFile(
-                "file", "story.docx",
-                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                baos.toByteArray());
+        return baos.toByteArray();
     }
 }

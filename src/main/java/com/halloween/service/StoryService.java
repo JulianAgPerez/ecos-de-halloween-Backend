@@ -6,6 +6,8 @@ import com.halloween.entities.Story;
 import com.halloween.repository.StoryRepository;
 import org.apache.poi.xwpf.usermodel.XWPFDocument;
 import org.apache.poi.xwpf.usermodel.XWPFParagraph;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -13,12 +15,19 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
 public class StoryService {
+
+    private static final Logger log = LoggerFactory.getLogger(StoryService.class);
+
+    // DOCX files are ZIP containers and always start with the local file header "PK\x03\x04".
+    private static final byte[] DOCX_MAGIC_BYTES = {0x50, 0x4B, 0x03, 0x04};
+    private static final int MAX_EXTRACTED_LENGTH = 500_000;
 
     @Autowired
     private StoryRepository storyRepository;
@@ -53,22 +62,39 @@ public class StoryService {
         return convertToDTO(storyRepository.save(story));
     }
     @Transactional
-    public StoryDTO uploadBody(MultipartFile file, Long storyId) throws IOException {
+    public StoryDTO uploadBody(MultipartFile file, Long storyId) {
         if (file == null || file.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "El archivo está vacío");
         }
-        if (!"application/vnd.openxmlformats-officedocument.wordprocessingml.document".equalsIgnoreCase(file.getContentType())
-                && !file.getOriginalFilename().toLowerCase().endsWith(".docx")) {
+        final String filename = file.getOriginalFilename();
+        if (filename == null || !filename.toLowerCase().endsWith(".docx")) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Solo se permiten archivos .docx");
+        }
+
+        final byte[] fileBytes;
+        try {
+            fileBytes = file.getBytes();
+        } catch (IOException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Could not read uploaded file");
+        }
+        if (!startsWithDocxMagicBytes(fileBytes)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid .docx file");
         }
 
         // Leer el contenido del archivo Word como String
         StringBuilder fileContent = new StringBuilder();
-
-        try (XWPFDocument document = new XWPFDocument(file.getInputStream())) {
+        try (XWPFDocument document = new XWPFDocument(new ByteArrayInputStream(fileBytes))) {
             for (XWPFParagraph paragraph : document.getParagraphs()) {
                 fileContent.append(paragraph.getText()).append("\n");
             }
+        } catch (IOException | RuntimeException e) {
+            // Corrupt or fake docx: POI throws a variety of runtime exceptions.
+            log.warn("Rejected corrupt .docx upload '{}': {}", filename, e.getMessage());
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid .docx file");
+        }
+
+        if (fileContent.length() > MAX_EXTRACTED_LENGTH) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Document too large");
         }
 
         // Encontrar la historia por ID
@@ -82,6 +108,18 @@ public class StoryService {
         storyRepository.save(story);
 
         return convertToDTO(story);
+    }
+
+    private static boolean startsWithDocxMagicBytes(byte[] bytes) {
+        if (bytes.length < DOCX_MAGIC_BYTES.length) {
+            return false;
+        }
+        for (int i = 0; i < DOCX_MAGIC_BYTES.length; i++) {
+            if (bytes[i] != DOCX_MAGIC_BYTES[i]) {
+                return false;
+            }
+        }
+        return true;
     }
 
     //Metodos para StoryTitleDTO
