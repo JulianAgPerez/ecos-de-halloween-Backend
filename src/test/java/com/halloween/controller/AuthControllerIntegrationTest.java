@@ -94,4 +94,52 @@ class AuthControllerIntegrationTest {
         JsonNode refreshBody = objectMapper.readTree(refreshResult.getResponse().getContentAsString());
         assertThat(refreshBody.get("access_token").asText()).isNotEmpty();
     }
+
+    @Test
+    void refresh_withAccessToken_returns401() throws Exception {
+        JsonNode loginBody = login();
+
+        mockMvc.perform(post("/auth/refresh")
+                        .header("Authorization", "Bearer " + loginBody.get("access_token").asText()))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void refresh_rotatesTokens_oldRefreshTokenNoLongerUsable() throws Exception {
+        JsonNode loginBody = login();
+        String oldRefresh = loginBody.get("refresh_token").asText();
+
+        MvcResult refreshResult = mockMvc.perform(post("/auth/refresh")
+                        .header("Authorization", "Bearer " + oldRefresh))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        JsonNode refreshBody = objectMapper.readTree(refreshResult.getResponse().getContentAsString());
+        assertThat(refreshBody.get("refresh_token").asText()).isNotEqualTo(oldRefresh);
+
+        mockMvc.perform(post("/auth/refresh")
+                        .header("Authorization", "Bearer " + oldRefresh))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void refresh_withRevokedRefreshToken_returns401() throws Exception {
+        JsonNode firstLogin = login();
+        login();
+
+        mockMvc.perform(post("/auth/refresh")
+                        .header("Authorization", "Bearer " + firstLogin.get("refresh_token").asText()))
+                .andExpect(status().isUnauthorized());
+    }
+
+    private JsonNode login() throws Exception {
+        MvcResult loginResult = mockMvc.perform(post("/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"email":"admin@test.com","password":"plainpass"}
+                                """))
+                .andExpect(status().isOk())
+                .andReturn();
+        return objectMapper.readTree(loginResult.getResponse().getContentAsString());
+    }
 }

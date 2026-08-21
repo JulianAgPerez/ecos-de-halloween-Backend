@@ -47,6 +47,7 @@ public class AuthService {
         final String refreshToken = jwtService.generateRefreshToken(savedUser);
 
         saveUserToken(savedUser, jwtToken);
+        saveUserToken(savedUser, refreshToken);
         return new TokenResponse(jwtToken, refreshToken);
     }
 
@@ -69,6 +70,7 @@ public class AuthService {
         final String refreshToken = jwtService.generateRefreshToken(user);
         revokeAllUserTokens(user);
         saveUserToken(user, accessToken);
+        saveUserToken(user, refreshToken);
         return new TokenResponse(accessToken, refreshToken);
     }
 
@@ -97,17 +99,18 @@ public class AuthService {
         }
     }
 
+    @Transactional
     public TokenResponse refreshToken(@NotNull final String authentication) {
         if (authentication == null || !authentication.startsWith("Bearer ")) {
             throw new IllegalArgumentException("Invalid auth header");
         }
-        final String refreshToken = authentication.substring(7);
-        if (!jwtService.isRefreshToken(refreshToken)) {
+        final String presentedToken = authentication.substring(7);
+        if (!jwtService.isRefreshToken(presentedToken)) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid refresh token");
         }
         final String userEmail;
         try {
-            userEmail = jwtService.extractUsername(refreshToken);
+            userEmail = jwtService.extractUsername(presentedToken);
         } catch (JwtException | IllegalArgumentException e) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid refresh token");
         }
@@ -117,15 +120,26 @@ public class AuthService {
 
         final User user = this.repository.findByEmail(userEmail)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found"));
-        final boolean isTokenValid = jwtService.isTokenValid(refreshToken, user);
-        if (!isTokenValid) {
+
+        // Store-backed check: the presented refresh token must exist server-side,
+        // unexpired and unrevoked, before anything is issued.
+        tokenRepository.findByToken(TokenHasher.sha256(presentedToken))
+                .filter(stored -> !stored.isExpired() && !stored.isRevoked())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid refresh token"));
+
+        if (!jwtService.isTokenValid(presentedToken, user)) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid refresh token");
         }
 
-        final String accessToken = jwtService.generateToken(user);
+        // Rotate: revoke the used refresh token together with every other valid
+        // token of the user, then issue and persist a fresh pair.
         revokeAllUserTokens(user);
-        saveUserToken(user, accessToken);
 
-        return new TokenResponse(accessToken, refreshToken);
+        final String accessToken = jwtService.generateToken(user);
+        final String newRefreshToken = jwtService.generateRefreshToken(user);
+        saveUserToken(user, accessToken);
+        saveUserToken(user, newRefreshToken);
+
+        return new TokenResponse(accessToken, newRefreshToken);
     }
 }
