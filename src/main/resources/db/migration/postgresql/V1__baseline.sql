@@ -1,6 +1,7 @@
 -- Baseline schema matching the current JPA entities exactly (PostgreSQL variant).
 -- The H2 variant used by tests lives in db/migration/h2/. They differ only in the
--- type of story.body: @Lob String maps to CLOB on H2 and to TEXT on PostgreSQL.
+-- type of story.body: @Lob String maps to CLOB on H2 and to OID (large object)
+-- on PostgreSQL, which is what Hibernate 6 validates against.
 -- Table names follow the default Spring Boot naming strategy:
 -- users/tokens are explicit @Table names; Story has no @Table so it maps to "story".
 
@@ -30,5 +31,5 @@ CREATE TABLE story (
     description VARCHAR(255),
     audio_url VARCHAR(255),
     background_image_url VARCHAR(255),
-    body TEXT
+    body OID
 );
