@@ -85,8 +85,9 @@ public class StoryService {
     //Metodos para StoryTitleDTO
     @Transactional(readOnly = true)
     public List<StoryTitleDTO> getAllStoryTitles(){
-        List<Story> stories = storyRepository.findAll();
-        return stories.stream().map(this::convertToTitleDTO).collect(Collectors.toList());
+        return storyRepository.findAllTitles().stream()
+                .map(view -> new StoryTitleDTO(view.getId(), view.getTitle()))
+                .collect(Collectors.toList());
     }
 
     // Conversiones entre entidades y DTOs
@@ -96,9 +97,5 @@ public class StoryService {
 
     private Story convertToEntity(StoryDTO storyDTO){
         return new Story(storyDTO.getId(), storyDTO.getTitle(), storyDTO.getDescription(), storyDTO.getAudioUrl(), storyDTO.getBackgroundImageUrl(), storyDTO.getBody());
-    }
-
-    private StoryTitleDTO convertToTitleDTO(Story story){
-        return new StoryTitleDTO(story.getId(), story.getTitle());
     }
 }

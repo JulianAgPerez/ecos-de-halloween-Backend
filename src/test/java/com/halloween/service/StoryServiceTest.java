@@ -23,6 +23,8 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -83,13 +85,19 @@ class StoryServiceTest {
     }
 
     @Test
-    void getAllStoryTitles_returnsTitles() {
-        when(storyRepository.findAll()).thenReturn(List.of(story()));
+    void getAllStoryTitles_usesTitleProjectionWithoutLoadingBodies() {
+        StoryRepository.StoryTitleView view = new StoryRepository.StoryTitleView() {
+            @Override public Long getId() { return 1L; }
+            @Override public String getTitle() { return "El susurro"; }
+        };
+        when(storyRepository.findAllTitles()).thenReturn(List.of(view));
 
         List<StoryTitleDTO> titles = storyService.getAllStoryTitles();
 
         assertThat(titles).hasSize(1);
+        assertThat(titles.get(0).getId()).isEqualTo(1L);
         assertThat(titles.get(0).getTitle()).isEqualTo("El susurro");
+        verify(storyRepository, never()).findAll();
     }
 
     @Test
