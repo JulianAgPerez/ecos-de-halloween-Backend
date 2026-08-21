@@ -2,6 +2,7 @@ package com.halloween.controller.auth;
 
 import com.halloween.service.AuthRequest;
 import com.halloween.service.AuthService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
@@ -16,7 +17,7 @@ public class AuthController {
     private final AuthService service;
 
     @PostMapping("/login")
-    public ResponseEntity<TokenResponse> authenticate(@RequestBody AuthRequest request) {
+    public ResponseEntity<TokenResponse> authenticate(@Valid @RequestBody AuthRequest request) {
         final TokenResponse response = service.authenticate(request);
         return ResponseEntity.ok(response);
     }

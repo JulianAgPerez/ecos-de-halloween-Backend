@@ -3,6 +3,7 @@ package com.halloween.controller;
 import com.halloween.dtos.StoryDTO;
 import com.halloween.dtos.StoryTitleDTO;
 import com.halloween.service.StoryService;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -36,13 +37,13 @@ public class StoryController {
     }
 
     @PostMapping
-    public ResponseEntity<StoryDTO> createStory(@RequestBody StoryDTO storyDTO) {
+    public ResponseEntity<StoryDTO> createStory(@Valid @RequestBody StoryDTO storyDTO) {
         StoryDTO newStory = storyService.createStory(storyDTO);
         return ResponseEntity.status(HttpStatus.CREATED).body(newStory);
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<StoryDTO> updateStory(@PathVariable Long id, @RequestBody StoryDTO storyDTO) {
+    public ResponseEntity<StoryDTO> updateStory(@PathVariable Long id, @Valid @RequestBody StoryDTO storyDTO) {
         StoryDTO updatedStory = storyService.updateStory(id, storyDTO);
         return ResponseEntity.ok(updatedStory);
     }

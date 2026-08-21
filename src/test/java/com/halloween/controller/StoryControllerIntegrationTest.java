@@ -23,6 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.io.ByteArrayOutputStream;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -103,6 +104,33 @@ class StoryControllerIntegrationTest {
                                 """))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.title").value("Nueva"));
+    }
+
+    @Test
+    void createStory_withClientSuppliedId_doesNotOverwriteExistingStory() throws Exception {
+        Story existing = storyRepository.save(new Story(null, "Original", "Desc", null, null, "cuerpo"));
+
+        mockMvc.perform(post("/api/stories")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"id\":" + existing.getId() + ",\"title\":\"Hijacked\"}"))
+                .andExpect(status().isCreated());
+
+        assertThat(storyRepository.count()).isEqualTo(2);
+        Story reloaded = storyRepository.findById(existing.getId()).orElseThrow();
+        assertThat(reloaded.getTitle()).isEqualTo("Original");
+    }
+
+    @Test
+    void createStory_blankTitle_returns400WithFieldErrors() throws Exception {
+        mockMvc.perform(post("/api/stories")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"title":"   "}
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fieldErrors.title").exists());
     }
 
     @Test

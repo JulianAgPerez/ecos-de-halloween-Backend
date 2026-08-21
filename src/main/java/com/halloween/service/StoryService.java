@@ -33,6 +33,8 @@ public class StoryService {
 
     @Transactional
     public StoryDTO createStory(StoryDTO storyDTO){
+        // POST must never merge-overwrite an existing row via a client-supplied id.
+        storyDTO.setId(null);
         Story story = convertToEntity(storyDTO);
         story = storyRepository.save(story);
         return convertToDTO(story);

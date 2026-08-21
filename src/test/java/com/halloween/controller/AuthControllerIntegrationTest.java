@@ -178,6 +178,29 @@ class AuthControllerIntegrationTest {
     }
 
     @Test
+    void login_withBlankCredentials_returns400WithFieldErrors() throws Exception {
+        mockMvc.perform(post("/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"email":"","password":""}
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fieldErrors.email").exists())
+                .andExpect(jsonPath("$.fieldErrors.password").exists());
+    }
+
+    @Test
+    void login_withInvalidEmailFormat_returns400() throws Exception {
+        mockMvc.perform(post("/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"email":"not-an-email","password":"plainpass"}
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fieldErrors.email").exists());
+    }
+
+    @Test
     void login_withMalformedJson_returns400WithGenericBody() throws Exception {
         mockMvc.perform(post("/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)

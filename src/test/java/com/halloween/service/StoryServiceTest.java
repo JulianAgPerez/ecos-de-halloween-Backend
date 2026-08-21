@@ -9,6 +9,7 @@ import org.apache.poi.xwpf.usermodel.XWPFParagraph;
 import org.apache.poi.xwpf.usermodel.XWPFRun;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -68,6 +69,18 @@ class StoryServiceTest {
 
         assertThat(dto.getId()).isEqualTo(1L);
         assertThat(dto.getTitle()).isEqualTo("Nuevo");
+    }
+
+    @Test
+    void createStory_nullsClientSuppliedIdBeforeSave() {
+        StoryDTO input = new StoryDTO(7L, "Nuevo", "Desc", null, null, "cuerpo");
+        when(storyRepository.save(any(Story.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        storyService.createStory(input);
+
+        ArgumentCaptor<Story> captor = ArgumentCaptor.forClass(Story.class);
+        verify(storyRepository).save(captor.capture());
+        assertThat(captor.getValue().getId()).isNull();
     }
 
     @Test
