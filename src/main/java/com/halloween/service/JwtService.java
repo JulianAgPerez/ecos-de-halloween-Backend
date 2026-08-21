@@ -6,6 +6,7 @@ import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
+import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -23,6 +24,7 @@ public class JwtService {
     }
 
     private static final String TYPE_CLAIM = "type";
+    private static final int MIN_SECRET_KEY_BYTES = 32;
 
     @Value("${application.secret-key}")
     private String secretKey;
@@ -30,6 +32,16 @@ public class JwtService {
     private long jwtExpiration;
     @Value("${application.refresh-expiration}")
     private long refreshExpiration;
+
+    @PostConstruct
+    void validateSecretKey() {
+        final byte[] keyBytes = Decoders.BASE64.decode(secretKey);
+        if (keyBytes.length < MIN_SECRET_KEY_BYTES) {
+            throw new IllegalStateException(
+                    "JWT secret key is too weak: decoded length is " + keyBytes.length
+                            + " bytes, but HS256 requires at least " + MIN_SECRET_KEY_BYTES + " bytes");
+        }
+    }
 
     public String extractUsername(String token) {
         return Jwts.parser()

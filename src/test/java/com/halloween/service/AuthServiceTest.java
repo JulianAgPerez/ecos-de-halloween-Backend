@@ -125,6 +125,21 @@ class AuthServiceTest {
     }
 
     @Test
+    void authenticate_withUnknownUser_stillPerformsDummyEncoding() {
+        when(authenticationManager.authenticate(any())).thenThrow(new BadCredentialsException("bad"));
+        when(repository.findByEmail("ghost@test.com")).thenReturn(Optional.empty());
+        when(passwordEncoder.encode("timing-equalizer")).thenReturn("$2a$12$dummyhash");
+
+        assertThatThrownBy(() -> authService.authenticate(new AuthRequest("ghost@test.com", "wrong")))
+                .isInstanceOf(ResponseStatusException.class)
+                .extracting("status")
+                .isEqualTo(HttpStatus.UNAUTHORIZED);
+
+        verify(passwordEncoder).encode("timing-equalizer");
+        verify(passwordEncoder).matches("timing-equalizer", "$2a$12$dummyhash");
+    }
+
+    @Test
     void refreshToken_withValidRefreshToken_rotatesAndReturnsNewPair() {
         when(jwtService.isRefreshToken("refresh")).thenReturn(true);
         when(jwtService.extractUsername("refresh")).thenReturn("admin@test.com");

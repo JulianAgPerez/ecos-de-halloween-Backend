@@ -61,6 +61,7 @@ public class AuthService {
                     )
             );
         } catch (AuthenticationException e) {
+            mitigateTimingBasedUserEnumeration(request.email());
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid email or password");
         }
 
@@ -96,6 +97,17 @@ public class AuthService {
                 token.setRevoked(true);
             });
             tokenRepository.saveAll(validUserTokens);
+        }
+    }
+
+    private static final String DUMMY_PASSWORD = "timing-equalizer";
+
+    // Unknown users skip the bcrypt comparison inside DaoAuthenticationProvider; burn the
+    // same encoding cost so login timing does not reveal whether an email is registered.
+    private void mitigateTimingBasedUserEnumeration(final String email) {
+        if (repository.findByEmail(email).isEmpty()) {
+            final String dummyHash = passwordEncoder.encode(DUMMY_PASSWORD);
+            passwordEncoder.matches(DUMMY_PASSWORD, dummyHash);
         }
     }
 
