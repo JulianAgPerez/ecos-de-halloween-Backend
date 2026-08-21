@@ -6,10 +6,12 @@ import lombok.*;
 
 import java.time.Instant;
 
-@Data
+@Getter
+@Setter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@ToString
 @Entity
 @Table(name = "tokens")
 public final class Token {
@@ -18,9 +20,11 @@ public final class Token {
     private long id;
 
     @Column(unique = true, length = 512)
+    @ToString.Exclude
     private String token;
 
     @Enumerated(EnumType.STRING)
+    @Builder.Default
     private TokenType tokenType = TokenType.BEARER;
 
     @Column(nullable = false)
@@ -34,9 +38,27 @@ public final class Token {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")
+    @ToString.Exclude
     private User user;
 
     public enum TokenType {
         BEARER
+    }
+
+    // JPA entities are compared by identity of their id, never by mutable state.
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (!(o instanceof Token other)) {
+            return false;
+        }
+        return id == other.id;
+    }
+
+    @Override
+    public int hashCode() {
+        return Long.hashCode(id);
     }
 }
