@@ -132,6 +132,30 @@ class AuthControllerIntegrationTest {
                 .andExpect(status().isUnauthorized());
     }
 
+    @Test
+    void logout_revokesSubsequentRequests() throws Exception {
+        JsonNode loginBody = login();
+        String accessToken = loginBody.get("access_token").asText();
+
+        mockMvc.perform(post("/auth/logout")
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(post("/api/stories")
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isUnauthorized());
+
+        mockMvc.perform(post("/auth/refresh")
+                        .header("Authorization", "Bearer " + loginBody.get("refresh_token").asText()))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void logout_withoutToken_returns401() throws Exception {
+        mockMvc.perform(post("/auth/logout"))
+                .andExpect(status().isUnauthorized());
+    }
+
     private JsonNode login() throws Exception {
         MvcResult loginResult = mockMvc.perform(post("/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)

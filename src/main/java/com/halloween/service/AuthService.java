@@ -142,4 +142,11 @@ public class AuthService {
 
         return new TokenResponse(accessToken, newRefreshToken);
     }
+
+    @Transactional
+    public void logout(final String email) {
+        final User user = repository.findByEmail(email)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found"));
+        revokeAllUserTokens(user);
+    }
 }

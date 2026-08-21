@@ -5,6 +5,7 @@ import com.halloween.service.AuthService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -22,5 +23,11 @@ public class AuthController {
     @PostMapping("/refresh")
     public TokenResponse refreshToken(@RequestHeader(HttpHeaders.AUTHORIZATION) final String authHeader){
         return service.refreshToken(authHeader);
+    }
+
+    @PostMapping("/logout")
+    public ResponseEntity<Void> logout(final Authentication authentication) {
+        service.logout(authentication.getName());
+        return ResponseEntity.noContent().build();
     }
 }
