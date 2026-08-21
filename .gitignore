@@ -81,7 +81,8 @@ node_modules/
 
 # Archivos de entorno local
 .env
-.env.example
+# .env.example IS tracked on purpose: it documents required env vars with
+# placeholder values for fresh clones. Never track the real .env.
 
 # Script de deploy local 
 deploy.ps1
