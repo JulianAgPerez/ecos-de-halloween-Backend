@@ -58,6 +58,25 @@ class JwtServiceTest {
     }
 
     @Test
+    void generateToken_setsAccessTypeClaim() {
+        String token = jwtService.generateToken(user());
+        assertThat(claims(token).get("type", String.class)).isEqualTo("ACCESS");
+    }
+
+    @Test
+    void generateRefreshToken_setsRefreshTypeClaim() {
+        String token = jwtService.generateRefreshToken(user());
+        assertThat(claims(token).get("type", String.class)).isEqualTo("REFRESH");
+    }
+
+    @Test
+    void isRefreshToken_acceptsOnlyRefreshTokens() {
+        assertThat(jwtService.isRefreshToken(jwtService.generateRefreshToken(user()))).isTrue();
+        assertThat(jwtService.isRefreshToken(jwtService.generateToken(user()))).isFalse();
+        assertThat(jwtService.isRefreshToken("not-a-jwt")).isFalse();
+    }
+
+    @Test
     void isTokenValid_returnsTrueForValidToken() {
         String token = jwtService.generateToken(user());
         assertThat(jwtService.isTokenValid(token, user())).isTrue();

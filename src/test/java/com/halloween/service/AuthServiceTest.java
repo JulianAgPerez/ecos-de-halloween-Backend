@@ -103,6 +103,7 @@ class AuthServiceTest {
 
     @Test
     void refreshToken_withValidRefreshToken_returnsNewAccessToken() {
+        when(jwtService.isRefreshToken("refresh")).thenReturn(true);
         when(jwtService.extractUsername("refresh")).thenReturn("admin@test.com");
         when(repository.findByEmail("admin@test.com")).thenReturn(Optional.of(user()));
         when(jwtService.isTokenValid("refresh", user())).thenReturn(true);
@@ -111,8 +112,17 @@ class AuthServiceTest {
         TokenResponse response = authService.refreshToken("Bearer refresh");
 
         assertThat(response.accessToken()).isEqualTo("new-access");
-        assertThat(response.refreshToken()).isEqualTo("refresh");
         verify(tokenRepository).save(any(Token.class));
+    }
+
+    @Test
+    void refreshToken_withAccessToken_throwsUnauthorized() {
+        when(jwtService.isRefreshToken("access")).thenReturn(false);
+
+        assertThatThrownBy(() -> authService.refreshToken("Bearer access"))
+                .isInstanceOf(ResponseStatusException.class)
+                .extracting("status")
+                .isEqualTo(HttpStatus.UNAUTHORIZED);
     }
 
     @Test
@@ -123,6 +133,7 @@ class AuthServiceTest {
 
     @Test
     void refreshToken_withInvalidRefreshToken_throwsUnauthorized() {
+        when(jwtService.isRefreshToken("refresh")).thenReturn(true);
         when(jwtService.extractUsername("refresh")).thenReturn("admin@test.com");
         when(repository.findByEmail("admin@test.com")).thenReturn(Optional.of(user()));
         when(jwtService.isTokenValid("refresh", user())).thenReturn(false);

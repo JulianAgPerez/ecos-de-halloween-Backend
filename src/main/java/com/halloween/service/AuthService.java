@@ -6,6 +6,7 @@ import com.halloween.controller.auth.TokenResponse;
 import com.halloween.repository.Token;
 import com.halloween.repository.TokenRepository;
 import com.halloween.repository.UserRepository;
+import io.jsonwebtoken.JwtException;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -97,9 +98,17 @@ public class AuthService {
             throw new IllegalArgumentException("Invalid auth header");
         }
         final String refreshToken = authentication.substring(7);
-        final String userEmail = jwtService.extractUsername(refreshToken);
+        if (!jwtService.isRefreshToken(refreshToken)) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid refresh token");
+        }
+        final String userEmail;
+        try {
+            userEmail = jwtService.extractUsername(refreshToken);
+        } catch (JwtException | IllegalArgumentException e) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid refresh token");
+        }
         if (userEmail == null) {
-            throw new IllegalArgumentException("Invalid token");
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid refresh token");
         }
 
         final User user = this.repository.findByEmail(userEmail)

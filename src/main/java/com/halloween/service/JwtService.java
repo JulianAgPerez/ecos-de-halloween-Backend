@@ -1,6 +1,7 @@
 package com.halloween.service;
 
 import com.halloween.entities.User;
+import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.io.Decoders;
@@ -15,6 +16,13 @@ import java.util.UUID;
 
 @Service
 public class JwtService {
+
+    public enum TokenType {
+        ACCESS,
+        REFRESH
+    }
+
+    private static final String TYPE_CLAIM = "type";
 
     @Value("${application.secret-key}")
     private String secretKey;
@@ -33,23 +41,40 @@ public class JwtService {
     }
 
     public String generateToken(final User user) {
-        return buildToken(user, jwtExpiration);
+        return buildToken(user, jwtExpiration, TokenType.ACCESS);
     }
 
     public String generateRefreshToken(final User user) {
-        return buildToken(user, refreshExpiration);
+        return buildToken(user, refreshExpiration, TokenType.REFRESH);
     }
 
-    private String buildToken(final User user, final long expiration) {
+    private String buildToken(final User user, final long expiration, final TokenType type) {
         return Jwts
                 .builder()
                 .id(UUID.randomUUID().toString())
-                .claims(Map.of("name", user.getName()))
+                .claims(Map.of("name", user.getName(), TYPE_CLAIM, type.name()))
                 .subject(user.getEmail())
                 .issuedAt(new Date(System.currentTimeMillis()))
                 .expiration(new Date(System.currentTimeMillis() + expiration))
                 .signWith(getSignInKey())
                 .compact();
+    }
+
+    public boolean isRefreshToken(final String token) {
+        try {
+            final String type = parseClaims(token).get(TYPE_CLAIM, String.class);
+            return TokenType.REFRESH.name().equals(type);
+        } catch (JwtException | IllegalArgumentException e) {
+            return false;
+        }
+    }
+
+    private Claims parseClaims(final String token) {
+        return Jwts.parser()
+                .verifyWith(getSignInKey())
+                .build()
+                .parseSignedClaims(token)
+                .getPayload();
     }
 
     public boolean isTokenValid(String token, User user) {
