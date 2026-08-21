@@ -13,7 +13,7 @@ import java.time.Instant;
 @AllArgsConstructor
 @ToString
 @Entity
-@Table(name = "tokens")
+@Table(name = "tokens", indexes = @Index(name = "idx_tokens_created_at", columnList = "created_at"))
 public final class Token {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
