@@ -12,6 +12,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -59,6 +60,18 @@ class AuthServiceTest {
         assertThatThrownBy(() -> authService.register(new RegisterRequest("Admin", "pass", "admin@test.com")))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("Email already in use");
+    }
+
+    @Test
+    void register_whenUniqueConstraintRace_propagatesDataIntegrityViolation() {
+        // The pre-check passes, but a concurrent registration inserts first and the
+        // unique email constraint fires on save. The exception must reach the global
+        // handler untouched (mapped to 409) instead of being swallowed into a 500.
+        when(repository.existsByEmail("admin@test.com")).thenReturn(false);
+        when(repository.save(any(User.class))).thenThrow(new DataIntegrityViolationException("uk_users_email"));
+
+        assertThatThrownBy(() -> authService.register(new RegisterRequest("Admin", "plainpass", "admin@test.com")))
+                .isInstanceOf(DataIntegrityViolationException.class);
     }
 
     @Test
