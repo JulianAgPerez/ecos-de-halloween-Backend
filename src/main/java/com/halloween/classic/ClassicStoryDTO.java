@@ -1,21 +1,22 @@
 package com.halloween.classic;
 
-import lombok.*;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.ToString;
 
-@AllArgsConstructor
-@NoArgsConstructor
+// Immutable by design: instances are shared across threads via the classicStories cache.
 @Getter
 @ToString
-@Setter
-public class ClassicStoryDTO {
-    private String slug;
-    private String title;
-    private String author;
-    private String translator;
-    private Integer year;
-    private String license;
-    private String licenseUrl;
-    private String attribution;
-    private String sourceUrl;
-    private String body;
+@AllArgsConstructor
+public final class ClassicStoryDTO {
+    private final String slug;
+    private final String title;
+    private final String author;
+    private final String translator;
+    private final Integer year;
+    private final String license;
+    private final String licenseUrl;
+    private final String attribution;
+    private final String sourceUrl;
+    private final String body;
 }
