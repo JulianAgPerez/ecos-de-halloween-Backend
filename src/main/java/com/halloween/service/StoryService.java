@@ -97,15 +97,18 @@ public class StoryService {
         try (XWPFDocument document = new XWPFDocument(new ByteArrayInputStream(fileBytes))) {
             for (XWPFParagraph paragraph : document.getParagraphs()) {
                 fileContent.append(paragraph.getText()).append("\n");
+                // Abort as soon as the extracted text exceeds the cap, before the
+                // StringBuilder materializes the whole bomb in memory.
+                if (fileContent.length() > MAX_EXTRACTED_LENGTH) {
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Document too large");
+                }
             }
+        } catch (ResponseStatusException e) {
+            throw e;
         } catch (IOException | RuntimeException e) {
             // Corrupt or fake docx: POI throws a variety of runtime exceptions.
             log.warn("Rejected corrupt .docx upload '{}': {}", filename, e.getMessage());
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid .docx file");
-        }
-
-        if (fileContent.length() > MAX_EXTRACTED_LENGTH) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Document too large");
         }
 
         // Encontrar la historia por ID
