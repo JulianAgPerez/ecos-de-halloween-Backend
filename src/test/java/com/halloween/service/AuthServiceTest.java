@@ -157,8 +157,7 @@ class AuthServiceTest {
         when(jwtService.isRefreshToken("refresh")).thenReturn(true);
         when(jwtService.extractUsername("refresh")).thenReturn("admin@test.com");
         when(repository.findByEmail("admin@test.com")).thenReturn(Optional.of(user()));
-        when(tokenRepository.findByToken(TokenHasher.sha256("refresh")))
-                .thenReturn(Optional.of(validStoredToken()));
+        when(tokenRepository.revokeTokenIfValid(TokenHasher.sha256("refresh"))).thenReturn(1);
         when(jwtService.isTokenValid("refresh", user())).thenReturn(true);
         when(jwtService.generateToken(user())).thenReturn("new-access");
         when(jwtService.generateRefreshToken(user())).thenReturn("new-refresh");
@@ -173,11 +172,11 @@ class AuthServiceTest {
     }
 
     @Test
-    void refreshToken_withUnknownStoredToken_throwsUnauthorized() {
+    void refreshToken_withNoRedeemableStoredToken_throwsUnauthorized() {
         when(jwtService.isRefreshToken("refresh")).thenReturn(true);
         when(jwtService.extractUsername("refresh")).thenReturn("admin@test.com");
         when(repository.findByEmail("admin@test.com")).thenReturn(Optional.of(user()));
-        when(tokenRepository.findByToken(TokenHasher.sha256("refresh"))).thenReturn(Optional.empty());
+        when(tokenRepository.revokeTokenIfValid(TokenHasher.sha256("refresh"))).thenReturn(0);
 
         assertThatThrownBy(() -> authService.refreshToken("Bearer refresh"))
                 .isInstanceOf(ResponseStatusException.class)
@@ -186,12 +185,11 @@ class AuthServiceTest {
     }
 
     @Test
-    void refreshToken_withRevokedStoredToken_throwsUnauthorized() {
+    void refreshToken_withPreviouslyRevokedStoredToken_throwsUnauthorized() {
         when(jwtService.isRefreshToken("refresh")).thenReturn(true);
         when(jwtService.extractUsername("refresh")).thenReturn("admin@test.com");
         when(repository.findByEmail("admin@test.com")).thenReturn(Optional.of(user()));
-        when(tokenRepository.findByToken(TokenHasher.sha256("refresh")))
-                .thenReturn(Optional.of(Token.builder().expired(false).revoked(true).build()));
+        when(tokenRepository.revokeTokenIfValid(TokenHasher.sha256("refresh"))).thenReturn(0);
 
         assertThatThrownBy(() -> authService.refreshToken("Bearer refresh"))
                 .isInstanceOf(ResponseStatusException.class)
@@ -220,8 +218,7 @@ class AuthServiceTest {
         when(jwtService.isRefreshToken("refresh")).thenReturn(true);
         when(jwtService.extractUsername("refresh")).thenReturn("admin@test.com");
         when(repository.findByEmail("admin@test.com")).thenReturn(Optional.of(user()));
-        when(tokenRepository.findByToken(TokenHasher.sha256("refresh")))
-                .thenReturn(Optional.of(validStoredToken()));
+        when(tokenRepository.revokeTokenIfValid(TokenHasher.sha256("refresh"))).thenReturn(1);
         when(jwtService.isTokenValid("refresh", user())).thenReturn(false);
 
         assertThatThrownBy(() -> authService.refreshToken("Bearer refresh"))
