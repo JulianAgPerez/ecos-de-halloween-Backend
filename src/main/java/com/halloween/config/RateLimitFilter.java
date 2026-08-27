@@ -16,9 +16,9 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Fixed-window rate limiter for the public auth endpoints.
- * Counters live in local memory keyed by client IP, so this only protects a
- * single application instance; a multi-instance deployment needs a shared
- * store such as Redis.
+ * Counters live in local memory keyed by client IP and normalized path, so this
+ * only protects a single application instance; a multi-instance deployment needs
+ * a shared store such as Redis.
  */
 @Component
 public class RateLimitFilter extends OncePerRequestFilter {
@@ -37,7 +37,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
-        return !LIMITED_PATHS.contains(request.getRequestURI());
+        return !LIMITED_PATHS.contains(normalizedPath(request));
     }
 
     @Override
@@ -47,7 +47,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
             FilterChain filterChain
     ) throws ServletException, IOException {
         long now = System.currentTimeMillis();
-        Window window = windowsByClient.compute(clientKey(request), (client, current) -> {
+        Window window = windowsByClient.compute(clientKey(request) + "|" + normalizedPath(request), (client, current) -> {
             if (current == null || now - current.startMillis >= WINDOW_MILLIS) {
                 return new Window(now);
             }
@@ -66,6 +66,15 @@ public class RateLimitFilter extends OncePerRequestFilter {
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    // matrix params must not split the rate-limit bucket: /auth/login;x=1 is the
+    // same protected path as /auth/login, so both the skip-list and the window key
+    // normalize away everything after the first ';'.
+    private static String normalizedPath(HttpServletRequest request) {
+        String uri = request.getRequestURI();
+        int semicolon = uri.indexOf(';');
+        return semicolon >= 0 ? uri.substring(0, semicolon) : uri;
     }
 
     private String clientKey(HttpServletRequest request) {
