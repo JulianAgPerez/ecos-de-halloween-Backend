@@ -3,6 +3,7 @@ package com.halloween.controller;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.halloween.entities.User;
+import com.halloween.repository.TokenRepository;
 import com.halloween.repository.UserRepository;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Decoders;
@@ -31,6 +32,7 @@ class AuthControllerIntegrationTest {
     @Autowired private MockMvc mockMvc;
     @Autowired private ObjectMapper objectMapper;
     @Autowired private UserRepository userRepository;
+    @Autowired private TokenRepository tokenRepository;
     @Autowired private PasswordEncoder passwordEncoder;
 
     @BeforeEach
@@ -70,6 +72,25 @@ class AuthControllerIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.access_token").isNotEmpty())
                 .andExpect(jsonPath("$.refresh_token").isNotEmpty());
+    }
+
+    @Test
+    void accessToken_afterUserDeleted_isRejected() throws Exception {
+        JsonNode loginBody = login();
+        String accessToken = loginBody.get("access_token").asText();
+
+        // tokens FK references users(id) without ON DELETE CASCADE, so invalidate the
+        // rows first, then drop the user to leave a valid-token-but-gone-user state.
+        tokenRepository.deleteAll();
+        userRepository.deleteAll();
+
+        mockMvc.perform(post("/api/stories")
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"title":"Nueva","description":"Desc"}
+                                """))
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
