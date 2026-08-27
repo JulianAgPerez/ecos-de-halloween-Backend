@@ -2,6 +2,7 @@ package com.halloween.controller;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.halloween.config.GlobalExceptionHandler;
 import com.halloween.entities.Story;
 import com.halloween.entities.User;
 import com.halloween.repository.StoryRepository;
@@ -15,13 +16,16 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 import java.io.ByteArrayOutputStream;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -202,6 +206,35 @@ class StoryControllerIntegrationTest {
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.body").isNotEmpty());
+    }
+
+    @Test
+    void getStoryById_withNonNumericId_returns400() throws Exception {
+        mockMvc.perform(get("/api/stories/abc"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("Invalid parameter value"));
+    }
+
+    @Test
+    void createStory_withUnsupportedMediaType_returns415() throws Exception {
+        mockMvc.perform(post("/api/stories")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.TEXT_PLAIN)
+                        .content("not json"))
+                .andExpect(status().isUnsupportedMediaType())
+                .andExpect(jsonPath("$.error").value("Unsupported media type"));
+    }
+
+    @Test
+    void oversizedUpload_isMappedTo413() throws Exception {
+        // MockMvc has no servlet container, so multipart size limits are never
+        // enforced end-to-end here; exercise the handler directly instead.
+        long exceededBy = 1L;
+        ResponseEntity<Map<String, Object>> response =
+                new GlobalExceptionHandler().handleMaxUploadSizeExceeded(
+                        new MaxUploadSizeExceededException(10L * 1024 * 1024 + exceededBy));
+        assertThat(response.getStatusCode().value()).isEqualTo(413);
+        assertThat(response.getBody().get("error")).isEqualTo("Uploaded file exceeds the maximum allowed size");
     }
 
     private byte[] validDocx() throws Exception {
