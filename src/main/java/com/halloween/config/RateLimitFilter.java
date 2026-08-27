@@ -13,6 +13,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Fixed-window rate limiter for the public auth endpoints.
@@ -28,6 +29,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
     private static final long WINDOW_MILLIS = 60_000L;
 
     private final ConcurrentHashMap<String, Window> windowsByClient = new ConcurrentHashMap<>();
+    private final AtomicLong lastSweepMillis = new AtomicLong(0);
     private final int maxRequestsPerWindow;
 
     public RateLimitFilter(
@@ -47,6 +49,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
             FilterChain filterChain
     ) throws ServletException, IOException {
         long now = System.currentTimeMillis();
+        sweepExpiredWindows(now);
         Window window = windowsByClient.compute(clientKey(request) + "|" + normalizedPath(request), (client, current) -> {
             if (current == null || now - current.startMillis >= WINDOW_MILLIS) {
                 return new Window(now);
@@ -77,6 +80,15 @@ public class RateLimitFilter extends OncePerRequestFilter {
         return semicolon >= 0 ? uri.substring(0, semicolon) : uri;
     }
 
+    // Best-effort, lock-free sweep: the windows map grows one entry per (client,path)
+    // pair, so at most once per window drop every expired window to bound memory.
+    private void sweepExpiredWindows(long now) {
+        long last = lastSweepMillis.get();
+        if (now - last >= WINDOW_MILLIS && lastSweepMillis.compareAndSet(last, now)) {
+            windowsByClient.entrySet().removeIf(entry -> entry.getValue().isExpired(now));
+        }
+    }
+
     private String clientKey(HttpServletRequest request) {
         // Render terminates TLS behind a proxy: the original client IP arrives
         // in X-Forwarded-For; fall back to the direct remote address elsewhere.
@@ -93,6 +105,10 @@ public class RateLimitFilter extends OncePerRequestFilter {
 
         private Window(long startMillis) {
             this.startMillis = startMillis;
+        }
+
+        private boolean isExpired(long now) {
+            return now - startMillis >= WINDOW_MILLIS;
         }
     }
 }
