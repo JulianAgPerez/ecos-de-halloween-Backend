@@ -56,6 +56,23 @@ class AuthControllerIntegrationTest {
     }
 
     @Test
+    void login_withNullNameUser_stillIssuesToken() throws Exception {
+        userRepository.save(User.builder()
+                .email("noname@test.com")
+                .password(passwordEncoder.encode("plainpass"))
+                .build());
+
+        mockMvc.perform(post("/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"email":"noname@test.com","password":"plainpass"}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.access_token").isNotEmpty())
+                .andExpect(jsonPath("$.refresh_token").isNotEmpty());
+    }
+
+    @Test
     void login_withWrongPassword_returns401() throws Exception {
         mockMvc.perform(post("/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)

@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 
 import javax.crypto.SecretKey;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
@@ -61,10 +62,15 @@ public class JwtService {
     }
 
     private String buildToken(final User user, final long expiration, final TokenType type) {
+        // HashMap (not Map.of) so a null user name leaves the "name" claim null
+        // instead of throwing an NPE (users.name is a nullable, unvalidated column).
+        final Map<String, Object> claims = new HashMap<>();
+        claims.put("name", user.getName());
+        claims.put(TYPE_CLAIM, type.name());
         return Jwts
                 .builder()
                 .id(UUID.randomUUID().toString())
-                .claims(Map.of("name", user.getName(), TYPE_CLAIM, type.name()))
+                .claims(claims)
                 .subject(user.getEmail())
                 .issuedAt(new Date(System.currentTimeMillis()))
                 .expiration(new Date(System.currentTimeMillis() + expiration))
