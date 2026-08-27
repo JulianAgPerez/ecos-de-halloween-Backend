@@ -17,7 +17,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @SpringBootTest
 @AutoConfigureMockMvc
-@TestPropertySource(properties = "application.rate-limit.requests-per-minute=3")
+@TestPropertySource(properties = {
+        "application.rate-limit.requests-per-minute=3",
+        "application.rate-limit.trusted-proxies=10.0.0.0/8"
+})
 class RateLimitFilterTest {
 
     // Production applies Spring Security's StrictHttpFirewall, which rejects ';' in
@@ -87,9 +90,42 @@ class RateLimitFilterTest {
                 .andExpect(status().isTooManyRequests());
     }
 
+    @Test
+    void login_withSpoofedXffFromUntrustedPeer_ignoresHeader() throws Exception {
+        // 203.0.113.0/24 is not configured as a trusted proxy, and the direct peer
+        // (MockMvc default 127.0.0.1) is not trusted either, so X-Forwarded-For is
+        // ignored and every request buckets on the remote address. Rotating XFF
+        // therefore cannot dodge the limiter: the 4th request within the window
+        // must be rejected regardless of the spoofed header.
+        for (int i = 0; i < 3; i++) {
+            mockMvc.perform(spoofedLogin("203.0.113." + (i + 1)))
+                    .andExpect(status().isUnauthorized());
+        }
+
+        mockMvc.perform(spoofedLogin("203.0.113.200"))
+                .andExpect(status().isTooManyRequests());
+    }
+
     private static org.springframework.test.web.servlet.RequestBuilder loginWithMatrixParam(String clientIp, int seq) {
         return post("/auth/login;x=" + seq)
                 .with(request -> {
+                    // MockMvc defaults the remote address to 127.0.0.1. These tests model a
+                    // trusted proxy (10.0.0.0/8) that sets XFF, so the direct peer must be that
+                    // trusted address for the filter to honor the header, as it does in
+                    // production behind the trusted LB.
+                    request.setRemoteAddr(clientIp);
+                    request.addHeader("X-Forwarded-For", clientIp);
+                    return request;
+                })
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"email\":\"nobody@test.com\",\"password\":\"wrongpass\"}");
+    }
+
+    private static org.springframework.test.web.servlet.RequestBuilder spoofedLogin(String clientIp) {
+        return post("/auth/login")
+                .with(request -> {
+                    // Deliberately leave the remote address at the MockMvc default
+                    // (127.0.0.1, not a trusted proxy): X-Forwarded-For must be ignored.
                     request.addHeader("X-Forwarded-For", clientIp);
                     return request;
                 })
@@ -100,6 +136,7 @@ class RateLimitFilterTest {
     private static org.springframework.test.web.servlet.RequestBuilder login(String clientIp) {
         return post("/auth/login")
                 .with(request -> {
+                    request.setRemoteAddr(clientIp);
                     request.addHeader("X-Forwarded-For", clientIp);
                     return request;
                 })
