@@ -133,11 +133,12 @@ public class AuthService {
         final User user = this.repository.findByEmail(userEmail)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found"));
 
-        // Store-backed check: the presented refresh token must exist server-side,
-        // unexpired and unrevoked, before anything is issued.
-        tokenRepository.findByToken(TokenHasher.sha256(presentedToken))
-                .filter(stored -> !stored.isExpired() && !stored.isRevoked())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid refresh token"));
+        // Atomic gate: the conditional UPDATE is the single authority on whether the
+        // presented token may still be redeemed; a concurrent second redemption hits
+        // revoked=true and returns 0 rows, so it cannot double-issue a fresh pair.
+        if (tokenRepository.revokeTokenIfValid(TokenHasher.sha256(presentedToken)) == 0) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid refresh token");
+        }
 
         if (!jwtService.isTokenValid(presentedToken, user)) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid refresh token");
