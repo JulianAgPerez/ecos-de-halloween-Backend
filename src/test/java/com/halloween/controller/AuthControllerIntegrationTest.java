@@ -108,6 +108,19 @@ class AuthControllerIntegrationTest {
     }
 
     @Test
+    void refresh_token_usedAsBearerOnProtectedRoute_isRejected() throws Exception {
+        JsonNode loginBody = login();
+
+        mockMvc.perform(post("/api/stories")
+                        .header("Authorization", "Bearer " + loginBody.get("refresh_token").asText())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"title":"Nueva","description":"Desc"}
+                                """))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
     void refresh_rotatesTokens_oldRefreshTokenNoLongerUsable() throws Exception {
         JsonNode loginBody = login();
         String oldRefresh = loginBody.get("refresh_token").asText();
