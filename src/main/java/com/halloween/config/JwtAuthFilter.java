@@ -68,6 +68,8 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                         // bearer credential anywhere else is rejected outright instead of
                         // granting full access to protected routes.
                         if (jwtService.isRefreshToken(jwt) && !REFRESH_ENDPOINT.equals(request.getRequestURI())) {
+                            log.warn("Rejected refresh token used as bearer credential from {}: {}",
+                                    request.getRemoteAddr(), request.getRequestURI());
                             writeError(response, HttpStatus.UNAUTHORIZED.value(), "Invalid or expired token");
                             SecurityContextHolder.clearContext();
                             return;
@@ -99,7 +101,10 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         } catch (JwtException | UsernameNotFoundException | IllegalArgumentException e) {
             // Invalid or expired token: clear any partial context and continue unauthenticated.
             // Protected paths get a clean 401 from the authentication entry point and public
-            // paths keep working; no response is written here.
+            // paths keep working; no response is written here. debug (not warn) because public
+            // routes attract constant garbage and this would otherwise be a log flood.
+            log.debug("Rejected invalid bearer credential from {}: {}",
+                    request.getRemoteAddr(), request.getRequestURI());
             SecurityContextHolder.clearContext();
         }
 

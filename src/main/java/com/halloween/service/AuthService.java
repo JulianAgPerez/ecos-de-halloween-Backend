@@ -9,6 +9,8 @@ import com.halloween.repository.UserRepository;
 import io.jsonwebtoken.JwtException;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -24,6 +26,8 @@ import java.util.List;
 @Service
 @RequiredArgsConstructor
 public class AuthService {
+    private static final Logger log = LoggerFactory.getLogger(AuthService.class);
+
     private final UserRepository repository;
     private final TokenRepository tokenRepository;
     private final PasswordEncoder passwordEncoder;
@@ -137,6 +141,7 @@ public class AuthService {
         // presented token may still be redeemed; a concurrent second redemption hits
         // revoked=true and returns 0 rows, so it cannot double-issue a fresh pair.
         if (tokenRepository.revokeTokenIfValid(TokenHasher.sha256(presentedToken)) == 0) {
+            log.warn("Refresh redemption rejected for: {}", userEmail == null ? "<unknown>" : userEmail);
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid refresh token");
         }
 
