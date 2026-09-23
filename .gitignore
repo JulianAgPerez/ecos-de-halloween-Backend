@@ -85,3 +85,7 @@ node_modules/
 
 # Script de deploy local 
 deploy.ps1
+
+# Local tooling state (per-machine, never commit)
+.atl/
+.codegraph/
