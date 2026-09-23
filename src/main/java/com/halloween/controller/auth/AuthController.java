@@ -2,9 +2,11 @@ package com.halloween.controller.auth;
 
 import com.halloween.service.AuthRequest;
 import com.halloween.service.AuthService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -15,12 +17,18 @@ public class AuthController {
     private final AuthService service;
 
     @PostMapping("/login")
-    public ResponseEntity<TokenResponse> authenticate(@RequestBody AuthRequest request) {
+    public ResponseEntity<TokenResponse> authenticate(@Valid @RequestBody AuthRequest request) {
         final TokenResponse response = service.authenticate(request);
         return ResponseEntity.ok(response);
     }
     @PostMapping("/refresh")
     public TokenResponse refreshToken(@RequestHeader(HttpHeaders.AUTHORIZATION) final String authHeader){
         return service.refreshToken(authHeader);
+    }
+
+    @PostMapping("/logout")
+    public ResponseEntity<Void> logout(final Authentication authentication) {
+        service.logout(authentication.getName());
+        return ResponseEntity.noContent().build();
     }
 }

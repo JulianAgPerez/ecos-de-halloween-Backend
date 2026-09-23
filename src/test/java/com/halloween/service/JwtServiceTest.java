@@ -11,6 +11,8 @@ import org.springframework.test.util.ReflectionTestUtils;
 import java.util.Date;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class JwtServiceTest {
 
@@ -55,6 +57,39 @@ class JwtServiceTest {
         String token = jwtService.generateRefreshToken(user());
         long lifetime = expiration(token).getTime() - issuedAt(token).getTime();
         assertThat(lifetime).isEqualTo(REFRESH_EXPIRATION);
+    }
+
+    @Test
+    void generateToken_setsAccessTypeClaim() {
+        String token = jwtService.generateToken(user());
+        assertThat(claims(token).get("type", String.class)).isEqualTo("ACCESS");
+    }
+
+    @Test
+    void generateRefreshToken_setsRefreshTypeClaim() {
+        String token = jwtService.generateRefreshToken(user());
+        assertThat(claims(token).get("type", String.class)).isEqualTo("REFRESH");
+    }
+
+    @Test
+    void isRefreshToken_acceptsOnlyRefreshTokens() {
+        assertThat(jwtService.isRefreshToken(jwtService.generateRefreshToken(user()))).isTrue();
+        assertThat(jwtService.isRefreshToken(jwtService.generateToken(user()))).isFalse();
+        assertThat(jwtService.isRefreshToken("not-a-jwt")).isFalse();
+    }
+
+    @Test
+    void validateSecretKey_acceptsStrongSecret() {
+        assertThatCode(jwtService::validateSecretKey).doesNotThrowAnyException();
+    }
+
+    @Test
+    void validateSecretKey_withWeakSecret_throwsIllegalState() {
+        JwtService weak = new JwtService();
+        ReflectionTestUtils.setField(weak, "secretKey", java.util.Base64.getEncoder().encodeToString("too-short".getBytes()));
+        assertThatThrownBy(weak::validateSecretKey)
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("at least 32 bytes");
     }
 
     @Test

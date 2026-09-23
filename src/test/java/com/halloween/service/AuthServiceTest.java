@@ -9,8 +9,10 @@ import com.halloween.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -61,6 +63,18 @@ class AuthServiceTest {
     }
 
     @Test
+    void register_whenUniqueConstraintRace_propagatesDataIntegrityViolation() {
+        // The pre-check passes, but a concurrent registration inserts first and the
+        // unique email constraint fires on save. The exception must reach the global
+        // handler untouched (mapped to 409) instead of being swallowed into a 500.
+        when(repository.existsByEmail("admin@test.com")).thenReturn(false);
+        when(repository.save(any(User.class))).thenThrow(new DataIntegrityViolationException("uk_users_email"));
+
+        assertThatThrownBy(() -> authService.register(new RegisterRequest("Admin", "plainpass", "admin@test.com")))
+                .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
     void register_savesUserWithEncodedPasswordAndReturnsTokens() {
         when(repository.existsByEmail("admin@test.com")).thenReturn(false);
         when(passwordEncoder.encode("plainpass")).thenReturn("encoded");
@@ -73,7 +87,28 @@ class AuthServiceTest {
         assertThat(response.accessToken()).isEqualTo("access");
         assertThat(response.refreshToken()).isEqualTo("refresh");
         verify(repository).save(any(User.class));
-        verify(tokenRepository).save(any(Token.class));
+        verify(tokenRepository, times(2)).save(any(Token.class));
+    }
+
+    @Test
+    void register_storesTokenAsSha256DigestWithCreationTimestamp() {
+        when(repository.existsByEmail("admin@test.com")).thenReturn(false);
+        when(repository.save(any(User.class))).thenReturn(user());
+        when(jwtService.generateToken(user())).thenReturn("access");
+        when(jwtService.generateRefreshToken(user())).thenReturn("refresh");
+
+        authService.register(new RegisterRequest("Admin", "plainpass", "admin@test.com"));
+
+        final ArgumentCaptor<Token> tokenCaptor = ArgumentCaptor.forClass(Token.class);
+        verify(tokenRepository, times(2)).save(tokenCaptor.capture());
+        assertThat(tokenCaptor.getAllValues())
+                .extracting(Token::getToken)
+                .containsExactlyInAnyOrder(TokenHasher.sha256("access"), TokenHasher.sha256("refresh"));
+        assertThat(tokenCaptor.getAllValues())
+                .allSatisfy(stored -> {
+                    assertThat(stored.getToken()).doesNotContain("access").doesNotContain("refresh");
+                    assertThat(stored.getCreatedAt()).isNotNull();
+                });
     }
 
     @Test
@@ -89,6 +124,7 @@ class AuthServiceTest {
         assertThat(response.accessToken()).isEqualTo("access");
         assertThat(response.refreshToken()).isEqualTo("refresh");
         verify(tokenRepository).saveAll(anyList());
+        verify(tokenRepository, times(2)).save(any(Token.class));
     }
 
     @Test
@@ -102,17 +138,73 @@ class AuthServiceTest {
     }
 
     @Test
-    void refreshToken_withValidRefreshToken_returnsNewAccessToken() {
+    void authenticate_withUnknownUser_stillPerformsDummyEncoding() {
+        when(authenticationManager.authenticate(any())).thenThrow(new BadCredentialsException("bad"));
+        when(repository.findByEmail("ghost@test.com")).thenReturn(Optional.empty());
+        when(passwordEncoder.encode("timing-equalizer")).thenReturn("$2a$12$dummyhash");
+
+        assertThatThrownBy(() -> authService.authenticate(new AuthRequest("ghost@test.com", "wrong")))
+                .isInstanceOf(ResponseStatusException.class)
+                .extracting("status")
+                .isEqualTo(HttpStatus.UNAUTHORIZED);
+
+        verify(passwordEncoder).encode("timing-equalizer");
+        verify(passwordEncoder).matches("timing-equalizer", "$2a$12$dummyhash");
+    }
+
+    @Test
+    void refreshToken_withValidRefreshToken_rotatesAndReturnsNewPair() {
+        when(jwtService.isRefreshToken("refresh")).thenReturn(true);
         when(jwtService.extractUsername("refresh")).thenReturn("admin@test.com");
         when(repository.findByEmail("admin@test.com")).thenReturn(Optional.of(user()));
+        when(tokenRepository.revokeTokenIfValid(TokenHasher.sha256("refresh"))).thenReturn(1);
         when(jwtService.isTokenValid("refresh", user())).thenReturn(true);
         when(jwtService.generateToken(user())).thenReturn("new-access");
+        when(jwtService.generateRefreshToken(user())).thenReturn("new-refresh");
+        when(tokenRepository.findAllValidTokenByUser(1L)).thenReturn(List.of(validStoredToken()));
 
         TokenResponse response = authService.refreshToken("Bearer refresh");
 
         assertThat(response.accessToken()).isEqualTo("new-access");
-        assertThat(response.refreshToken()).isEqualTo("refresh");
-        verify(tokenRepository).save(any(Token.class));
+        assertThat(response.refreshToken()).isEqualTo("new-refresh");
+        verify(tokenRepository).saveAll(anyList());
+        verify(tokenRepository, times(2)).save(any(Token.class));
+    }
+
+    @Test
+    void refreshToken_withNoRedeemableStoredToken_throwsUnauthorized() {
+        when(jwtService.isRefreshToken("refresh")).thenReturn(true);
+        when(jwtService.extractUsername("refresh")).thenReturn("admin@test.com");
+        when(repository.findByEmail("admin@test.com")).thenReturn(Optional.of(user()));
+        when(tokenRepository.revokeTokenIfValid(TokenHasher.sha256("refresh"))).thenReturn(0);
+
+        assertThatThrownBy(() -> authService.refreshToken("Bearer refresh"))
+                .isInstanceOf(ResponseStatusException.class)
+                .extracting("status")
+                .isEqualTo(HttpStatus.UNAUTHORIZED);
+    }
+
+    @Test
+    void refreshToken_withPreviouslyRevokedStoredToken_throwsUnauthorized() {
+        when(jwtService.isRefreshToken("refresh")).thenReturn(true);
+        when(jwtService.extractUsername("refresh")).thenReturn("admin@test.com");
+        when(repository.findByEmail("admin@test.com")).thenReturn(Optional.of(user()));
+        when(tokenRepository.revokeTokenIfValid(TokenHasher.sha256("refresh"))).thenReturn(0);
+
+        assertThatThrownBy(() -> authService.refreshToken("Bearer refresh"))
+                .isInstanceOf(ResponseStatusException.class)
+                .extracting("status")
+                .isEqualTo(HttpStatus.UNAUTHORIZED);
+    }
+
+    @Test
+    void refreshToken_withAccessToken_throwsUnauthorized() {
+        when(jwtService.isRefreshToken("access")).thenReturn(false);
+
+        assertThatThrownBy(() -> authService.refreshToken("Bearer access"))
+                .isInstanceOf(ResponseStatusException.class)
+                .extracting("status")
+                .isEqualTo(HttpStatus.UNAUTHORIZED);
     }
 
     @Test
@@ -123,13 +215,22 @@ class AuthServiceTest {
 
     @Test
     void refreshToken_withInvalidRefreshToken_throwsUnauthorized() {
+        when(jwtService.isRefreshToken("refresh")).thenReturn(true);
         when(jwtService.extractUsername("refresh")).thenReturn("admin@test.com");
         when(repository.findByEmail("admin@test.com")).thenReturn(Optional.of(user()));
+        when(tokenRepository.revokeTokenIfValid(TokenHasher.sha256("refresh"))).thenReturn(1);
         when(jwtService.isTokenValid("refresh", user())).thenReturn(false);
 
         assertThatThrownBy(() -> authService.refreshToken("Bearer refresh"))
                 .isInstanceOf(ResponseStatusException.class)
                 .extracting("status")
                 .isEqualTo(HttpStatus.UNAUTHORIZED);
+    }
+
+    private Token validStoredToken() {
+        return Token.builder()
+                .expired(false)
+                .revoked(false)
+                .build();
     }
 }
