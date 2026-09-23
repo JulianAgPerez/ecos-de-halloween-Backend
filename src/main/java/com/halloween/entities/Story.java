@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.*;
 
 @Entity
+@org.hibernate.annotations.DynamicUpdate
 @AllArgsConstructor
 @NoArgsConstructor
 @Getter

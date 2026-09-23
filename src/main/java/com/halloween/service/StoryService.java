@@ -111,17 +111,16 @@ public class StoryService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid .docx file");
         }
 
-        // Encontrar la historia por ID
-        Story story = storyRepository.findById(storyId)
+        // Encontrar la historia por ID y reemplazar su body sin leer el LOB viejo
+        int updated = storyRepository.updateBody(storyId, fileContent.toString());
+        if (updated == 0) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Cuento no encontrado");
+        }
+
+        var meta = storyRepository.findMetaById(storyId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Cuento no encontrado"));
 
-        // Asignar el contenido del archivo como String
-        story.setBody(fileContent.toString()); // Ahora es String
-
-        // Guardar la historia actualizada
-        storyRepository.save(story);
-
-        return convertToDTO(story);
+        return new StoryDTO(storyId, meta.getTitle(), meta.getDescription(), meta.getAudioUrl(), meta.getBackgroundImageUrl(), fileContent.toString());
     }
 
     private static boolean startsWithDocxMagicBytes(byte[] bytes) {

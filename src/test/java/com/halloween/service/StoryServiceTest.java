@@ -24,6 +24,8 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -131,12 +133,21 @@ class StoryServiceTest {
 
     @Test
     void uploadBody_withValidDocx_updatesBody() throws Exception {
-        when(storyRepository.findById(1L)).thenReturn(Optional.of(story()));
-        when(storyRepository.save(any(Story.class))).thenReturn(story());
+        StoryRepository.StoryMetaView meta = new StoryRepository.StoryMetaView() {
+            @Override public String getTitle() { return "El susurro"; }
+            @Override public String getDescription() { return "Un cuento"; }
+            @Override public String getAudioUrl() { return "audio.mp3"; }
+            @Override public String getBackgroundImageUrl() { return "bg.png"; }
+        };
+        when(storyRepository.updateBody(eq(1L), anyString())).thenReturn(1);
+        when(storyRepository.findMetaById(1L)).thenReturn(Optional.of(meta));
 
         StoryDTO dto = storyService.uploadBody(validDocx("Un parrafo de prueba"), 1L);
 
+        assertThat(dto.getTitle()).isEqualTo("El susurro");
         assertThat(dto.getBody()).contains("Un parrafo de prueba");
+        verify(storyRepository).updateBody(eq(1L), anyString());
+        verify(storyRepository, never()).findById(any());
     }
 
     @Test
