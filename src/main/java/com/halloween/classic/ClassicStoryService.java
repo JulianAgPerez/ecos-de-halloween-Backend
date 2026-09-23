@@ -33,11 +33,13 @@ public class ClassicStoryService {
 
     public List<ClassicStoryDTO> getAll() {
         return catalogProvider.getAll().stream()
-                .map(this::toSummary)
+                .map(entry -> toSummary(entry, null))
                 .collect(Collectors.toList());
     }
 
-    @Cacheable(cacheNames = "classicStories", key = "#slug")
+    // Cache key is lower-cased so different slug casings share one entry;
+    // findBySlug is case-insensitive, so both paths stay consistent.
+    @Cacheable(cacheNames = "classicStories", key = "#slug.toLowerCase()", sync = true)
     public ClassicStoryDTO getStory(String slug) {
         ClassicStoryDTO entry = catalogProvider.findBySlug(slug)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Clásico no encontrado"));
@@ -49,12 +51,10 @@ public class ClassicStoryService {
                     "La página de Wikisource no contiene el texto de la historia");
         }
 
-        ClassicStoryDTO dto = toSummary(entry);
-        dto.setBody(body);
-        return dto;
+        return toSummary(entry, body);
     }
 
-    private ClassicStoryDTO toSummary(ClassicStoryDTO entry) {
+    private ClassicStoryDTO toSummary(ClassicStoryDTO entry, String body) {
         return new ClassicStoryDTO(
                 entry.getSlug(),
                 entry.getTitle(),
@@ -65,7 +65,7 @@ public class ClassicStoryService {
                 entry.getLicenseUrl(),
                 entry.getAttribution(),
                 buildSourceUrl(entry.getSlug()),
-                null
+                body
         );
     }
 

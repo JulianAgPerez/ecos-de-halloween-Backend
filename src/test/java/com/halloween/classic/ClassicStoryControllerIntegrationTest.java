@@ -10,6 +10,8 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -87,6 +89,18 @@ class ClassicStoryControllerIntegrationTest {
         mockMvc.perform(get("/api/classics/{slug}", "no-existe"))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.error").value(containsString("no encontrado")));
+    }
+
+    @Test
+    void getBySlug_cacheKeyIsCaseInsensitive_secondCallHitsCache() throws Exception {
+        // Unique slug for this test: the Caffeine cache survives MockBean resets between tests.
+        mockMvc.perform(get("/api/classics/{slug}", "El rayo de luna"))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/classics/{slug}", "EL RAYO DE LUNA"))
+                .andExpect(status().isOk());
+
+        verify(wikisourceClient, times(1)).fetchPageHtml(anyString());
     }
 
     @Test
