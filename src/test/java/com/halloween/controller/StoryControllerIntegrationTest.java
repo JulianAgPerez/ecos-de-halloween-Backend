@@ -2,6 +2,7 @@ package com.halloween.controller;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.halloween.config.GlobalExceptionHandler;
 import com.halloween.entities.Story;
 import com.halloween.entities.User;
 import com.halloween.repository.StoryRepository;
@@ -15,14 +16,18 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 import java.io.ByteArrayOutputStream;
+import java.util.Map;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -106,6 +111,33 @@ class StoryControllerIntegrationTest {
     }
 
     @Test
+    void createStory_withClientSuppliedId_doesNotOverwriteExistingStory() throws Exception {
+        Story existing = storyRepository.save(new Story(null, "Original", "Desc", null, null, "cuerpo"));
+
+        mockMvc.perform(post("/api/stories")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"id\":" + existing.getId() + ",\"title\":\"Hijacked\"}"))
+                .andExpect(status().isCreated());
+
+        assertThat(storyRepository.count()).isEqualTo(2);
+        Story reloaded = storyRepository.findById(existing.getId()).orElseThrow();
+        assertThat(reloaded.getTitle()).isEqualTo("Original");
+    }
+
+    @Test
+    void createStory_blankTitle_returns400WithFieldErrors() throws Exception {
+        mockMvc.perform(post("/api/stories")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"title":"   "}
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fieldErrors.title").exists());
+    }
+
+    @Test
     void updateStory_withoutToken_returns401() throws Exception {
         Story story = storyRepository.save(new Story(null, "Titulo", "Desc", null, null, "cuerpo"));
 
@@ -132,6 +164,28 @@ class StoryControllerIntegrationTest {
     }
 
     @Test
+    void updateStory_withOnlyTitleKeepsOtherFieldsIntact() throws Exception {
+        Story story = storyRepository.save(new Story(null, "Titulo", "Desc", "audio.mp3", "bg.png", "cuerpo"));
+
+        mockMvc.perform(put("/api/stories/" + story.getId())
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"title":"Editada"}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.title").value("Editada"))
+                .andExpect(jsonPath("$.description").value("Desc"))
+                .andExpect(jsonPath("$.audioUrl").value("audio.mp3"))
+                .andExpect(jsonPath("$.body").value("cuerpo"));
+
+        Story reloaded = storyRepository.findById(story.getId()).orElseThrow();
+        assertThat(reloaded.getDescription()).isEqualTo("Desc");
+        assertThat(reloaded.getAudioUrl()).isEqualTo("audio.mp3");
+        assertThat(reloaded.getBody()).isEqualTo("cuerpo");
+    }
+
+    @Test
     void uploadBody_withoutToken_returns401() throws Exception {
         Story story = storyRepository.save(new Story(null, "Titulo", "Desc", null, null, "cuerpo"));
         MockMultipartFile file = new MockMultipartFile("file", "story.docx",
@@ -152,6 +206,35 @@ class StoryControllerIntegrationTest {
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.body").isNotEmpty());
+    }
+
+    @Test
+    void getStoryById_withNonNumericId_returns400() throws Exception {
+        mockMvc.perform(get("/api/stories/abc"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("Invalid parameter value"));
+    }
+
+    @Test
+    void createStory_withUnsupportedMediaType_returns415() throws Exception {
+        mockMvc.perform(post("/api/stories")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.TEXT_PLAIN)
+                        .content("not json"))
+                .andExpect(status().isUnsupportedMediaType())
+                .andExpect(jsonPath("$.error").value("Unsupported media type"));
+    }
+
+    @Test
+    void oversizedUpload_isMappedTo413() throws Exception {
+        // MockMvc has no servlet container, so multipart size limits are never
+        // enforced end-to-end here; exercise the handler directly instead.
+        long exceededBy = 1L;
+        ResponseEntity<Map<String, Object>> response =
+                new GlobalExceptionHandler().handleMaxUploadSizeExceeded(
+                        new MaxUploadSizeExceededException(10L * 1024 * 1024 + exceededBy));
+        assertThat(response.getStatusCode().value()).isEqualTo(413);
+        assertThat(response.getBody().get("error")).isEqualTo("Uploaded file exceeds the maximum allowed size");
     }
 
     private byte[] validDocx() throws Exception {

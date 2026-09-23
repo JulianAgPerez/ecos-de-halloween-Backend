@@ -6,6 +6,8 @@ import com.halloween.entities.Story;
 import com.halloween.repository.StoryRepository;
 import org.apache.poi.xwpf.usermodel.XWPFDocument;
 import org.apache.poi.xwpf.usermodel.XWPFParagraph;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -13,12 +15,19 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
 public class StoryService {
+
+    private static final Logger log = LoggerFactory.getLogger(StoryService.class);
+
+    // DOCX files are ZIP containers and always start with the local file header "PK\x03\x04".
+    private static final byte[] DOCX_MAGIC_BYTES = {0x50, 0x4B, 0x03, 0x04};
+    private static final int MAX_EXTRACTED_LENGTH = 500_000;
 
     @Autowired
     private StoryRepository storyRepository;
@@ -33,6 +42,8 @@ public class StoryService {
 
     @Transactional
     public StoryDTO createStory(StoryDTO storyDTO){
+        // POST must never merge-overwrite an existing row via a client-supplied id.
+        storyDTO.setId(null);
         Story story = convertToEntity(storyDTO);
         story = storyRepository.save(story);
         return convertToDTO(story);
@@ -42,51 +53,94 @@ public class StoryService {
     public StoryDTO updateStory(Long id, StoryDTO storyDTO){
         Story story = storyRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,"Cuento no encontrado"));
-        story.setTitle(storyDTO.getTitle());
-        story.setDescription(storyDTO.getDescription());
-        story.setAudioUrl(storyDTO.getAudioUrl());
-        story.setBackgroundImageUrl(storyDTO.getBackgroundImageUrl());
-        story.setBody(storyDTO.getBody());
+        // Null fields in the PUT body mean "keep the existing value", not "wipe it".
+        if (storyDTO.getTitle() != null) {
+            story.setTitle(storyDTO.getTitle());
+        }
+        if (storyDTO.getDescription() != null) {
+            story.setDescription(storyDTO.getDescription());
+        }
+        if (storyDTO.getAudioUrl() != null) {
+            story.setAudioUrl(storyDTO.getAudioUrl());
+        }
+        if (storyDTO.getBackgroundImageUrl() != null) {
+            story.setBackgroundImageUrl(storyDTO.getBackgroundImageUrl());
+        }
+        if (storyDTO.getBody() != null) {
+            story.setBody(storyDTO.getBody());
+        }
 
         return convertToDTO(storyRepository.save(story));
     }
     @Transactional
-    public StoryDTO uploadBody(MultipartFile file, Long storyId) throws IOException {
+    public StoryDTO uploadBody(MultipartFile file, Long storyId) {
         if (file == null || file.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "El archivo está vacío");
         }
-        if (!"application/vnd.openxmlformats-officedocument.wordprocessingml.document".equalsIgnoreCase(file.getContentType())
-                && !file.getOriginalFilename().toLowerCase().endsWith(".docx")) {
+        final String filename = file.getOriginalFilename();
+        if (filename == null || !filename.toLowerCase().endsWith(".docx")) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Solo se permiten archivos .docx");
+        }
+
+        final byte[] fileBytes;
+        try {
+            fileBytes = file.getBytes();
+        } catch (IOException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Could not read uploaded file");
+        }
+        if (!startsWithDocxMagicBytes(fileBytes)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid .docx file");
         }
 
         // Leer el contenido del archivo Word como String
         StringBuilder fileContent = new StringBuilder();
-
-        try (XWPFDocument document = new XWPFDocument(file.getInputStream())) {
+        try (XWPFDocument document = new XWPFDocument(new ByteArrayInputStream(fileBytes))) {
             for (XWPFParagraph paragraph : document.getParagraphs()) {
                 fileContent.append(paragraph.getText()).append("\n");
+                // Abort as soon as the extracted text exceeds the cap, before the
+                // StringBuilder materializes the whole bomb in memory.
+                if (fileContent.length() > MAX_EXTRACTED_LENGTH) {
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Document too large");
+                }
             }
+        } catch (ResponseStatusException e) {
+            throw e;
+        } catch (IOException | RuntimeException e) {
+            // Corrupt or fake docx: POI throws a variety of runtime exceptions.
+            log.warn("Rejected corrupt .docx upload '{}': {}", filename, e.getMessage());
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid .docx file");
         }
 
-        // Encontrar la historia por ID
-        Story story = storyRepository.findById(storyId)
+        // Encontrar la historia por ID y reemplazar su body sin leer el LOB viejo
+        int updated = storyRepository.updateBody(storyId, fileContent.toString());
+        if (updated == 0) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Cuento no encontrado");
+        }
+
+        var meta = storyRepository.findMetaById(storyId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Cuento no encontrado"));
 
-        // Asignar el contenido del archivo como String
-        story.setBody(fileContent.toString()); // Ahora es String
+        return new StoryDTO(storyId, meta.getTitle(), meta.getDescription(), meta.getAudioUrl(), meta.getBackgroundImageUrl(), fileContent.toString());
+    }
 
-        // Guardar la historia actualizada
-        storyRepository.save(story);
-
-        return convertToDTO(story);
+    private static boolean startsWithDocxMagicBytes(byte[] bytes) {
+        if (bytes.length < DOCX_MAGIC_BYTES.length) {
+            return false;
+        }
+        for (int i = 0; i < DOCX_MAGIC_BYTES.length; i++) {
+            if (bytes[i] != DOCX_MAGIC_BYTES[i]) {
+                return false;
+            }
+        }
+        return true;
     }
 
     //Metodos para StoryTitleDTO
     @Transactional(readOnly = true)
     public List<StoryTitleDTO> getAllStoryTitles(){
-        List<Story> stories = storyRepository.findAll();
-        return stories.stream().map(this::convertToTitleDTO).collect(Collectors.toList());
+        return storyRepository.findAllTitles().stream()
+                .map(view -> new StoryTitleDTO(view.getId(), view.getTitle()))
+                .collect(Collectors.toList());
     }
 
     // Conversiones entre entidades y DTOs
@@ -96,9 +150,5 @@ public class StoryService {
 
     private Story convertToEntity(StoryDTO storyDTO){
         return new Story(storyDTO.getId(), storyDTO.getTitle(), storyDTO.getDescription(), storyDTO.getAudioUrl(), storyDTO.getBackgroundImageUrl(), storyDTO.getBody());
-    }
-
-    private StoryTitleDTO convertToTitleDTO(Story story){
-        return new StoryTitleDTO(story.getId(), story.getTitle());
     }
 }
