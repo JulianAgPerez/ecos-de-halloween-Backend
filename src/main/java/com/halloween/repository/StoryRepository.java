@@ -17,9 +17,13 @@ public interface StoryRepository extends JpaRepository<Story,Long> {
         Long getId();
 
         String getTitle();
+
+        Long getOwnerId();
     }
 
-    @Query("select s.id as id, s.title as title from Story s")
+    // owner is selected as an id, never as an entity: this projection backs a
+    // public list and a null owner (community story) must not drag a fetch.
+    @Query("select s.id as id, s.title as title, s.owner.id as ownerId from Story s")
     List<StoryTitleView> findAllTitles();
 
     interface StoryMetaView {
@@ -27,9 +31,10 @@ public interface StoryRepository extends JpaRepository<Story,Long> {
         String getDescription();
         String getAudioUrl();
         String getBackgroundImageUrl();
+        String getAuthor();
     }
 
-    @Query("select s.title as title, s.description as description, s.audioUrl as audioUrl, s.backgroundImageUrl as backgroundImageUrl from Story s where s.id = :id")
+    @Query("select s.title as title, s.description as description, s.audioUrl as audioUrl, s.backgroundImageUrl as backgroundImageUrl, s.author as author from Story s where s.id = :id")
     Optional<StoryMetaView> findMetaById(@Param("id") Long id);
 
     @Modifying

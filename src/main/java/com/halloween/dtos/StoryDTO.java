@@ -28,4 +28,8 @@ public class StoryDTO {
 
     @Size(max = 500_000)
     private String body;
+
+    // Optional byline for public submissions; column defaults to varchar(255).
+    @Size(max = 255)
+    private String author;
 }

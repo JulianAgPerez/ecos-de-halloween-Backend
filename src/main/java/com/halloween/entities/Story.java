@@ -22,4 +22,13 @@ public class Story {
 
     @Lob
     private String body;
+
+    private String author;
+
+    // Account that submitted the story. Distinct from `author`, which is free
+    // text kept only for display credit. Null means no session submitted it,
+    // which is what makes a story community content.
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "owner_id")
+    private User owner;
 }

@@ -10,4 +10,5 @@ import lombok.*;
 public class StoryTitleDTO {
     private long id;
     private String title;
+    private boolean mine;
 }
