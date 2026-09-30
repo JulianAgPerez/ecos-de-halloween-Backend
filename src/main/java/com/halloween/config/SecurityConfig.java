@@ -41,6 +41,13 @@ public class SecurityConfig {
                                 .requestMatchers(HttpMethod.POST, "/auth/register").denyAll()
                                 .requestMatchers(HttpMethod.GET, "/api/stories/**").permitAll()
                                 .requestMatchers(HttpMethod.GET, "/api/classics/**").permitAll()
+                                // Story submission is public: visitors never register, so the
+                                // exact creation path is open to anonymous callers. Matchers are
+                                // evaluated in declaration order and the first match wins, so this
+                                // must stay above both the POST /api/stories/** matcher below and
+                                // the anyRequest() catch-all. The path is exact on purpose:
+                                // /upload-body/{id} and PUT /api/stories/{id} keep requiring auth.
+                                .requestMatchers(HttpMethod.POST, "/api/stories").permitAll()
                                 .requestMatchers(HttpMethod.POST, "/api/stories/**").authenticated()
                                 .requestMatchers(HttpMethod.PUT, "/api/stories/**").authenticated()
                                 .anyRequest().authenticated()

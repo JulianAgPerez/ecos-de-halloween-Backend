@@ -19,7 +19,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * Fixed-window rate limiter for the public auth endpoints.
+ * Fixed-window rate limiter for the rate-limited public endpoints.
  * Counters live in local memory keyed by client IP and normalized path, so this
  * only protects a single application instance; a multi-instance deployment needs
  * a shared store such as Redis.
@@ -28,7 +28,13 @@ import java.util.concurrent.atomic.AtomicLong;
 public class RateLimitFilter extends OncePerRequestFilter {
 
     static final String RATE_LIMIT_EXCEEDED_BODY = "{\"error\":\"Too many requests. Please try again later.\"}";
-    private static final Set<String> LIMITED_PATHS = Set.of("/auth/login", "/auth/refresh");
+    // "/api/stories" is the public submission path and is the only story route that
+    // needs a bucket: exact string match, so PUT /api/stories/{id} and
+    // /upload-body/{id} are different paths and stay unrate-limited (the latter is
+    // still auth-gated). It deliberately reuses application.rate-limit.requests-per-minute
+    // because windows are keyed by client+path, so submissions never spend the login
+    // budget, and one visitor writing a story is far below 10/min even behind NAT.
+    private static final Set<String> LIMITED_PATHS = Set.of("/auth/login", "/auth/refresh", "/api/stories");
     private static final long WINDOW_MILLIS = 60_000L;
 
     private final ConcurrentHashMap<String, Window> windowsByClient = new ConcurrentHashMap<>();
