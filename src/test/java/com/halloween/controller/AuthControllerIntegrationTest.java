@@ -84,12 +84,10 @@ class AuthControllerIntegrationTest {
         tokenRepository.deleteAll();
         userRepository.deleteAll();
 
-        mockMvc.perform(post("/api/stories")
-                        .header("Authorization", "Bearer " + accessToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {"title":"Nueva","description":"Desc"}
-                                """))
+        // POST /api/stories is public, so probe an endpoint that still requires auth
+        // to prove a token whose user is gone cannot be redeemed.
+        mockMvc.perform(post("/auth/logout")
+                        .header("Authorization", "Bearer " + accessToken))
                 .andExpect(status().isUnauthorized());
     }
 
@@ -146,7 +144,9 @@ class AuthControllerIntegrationTest {
     }
 
     @Test
-    void refresh_token_usedAsBearerOnProtectedRoute_isRejected() throws Exception {
+    void refresh_token_usedAsBearer_isRejected() throws Exception {
+        // POST /api/stories is public, so this also proves a refresh token presented as a
+        // bearer credential is rejected outright even where anonymous access is allowed.
         JsonNode loginBody = login();
 
         mockMvc.perform(post("/api/stories")
@@ -195,7 +195,7 @@ class AuthControllerIntegrationTest {
                         .header("Authorization", "Bearer " + accessToken))
                 .andExpect(status().isNoContent());
 
-        mockMvc.perform(post("/api/stories")
+        mockMvc.perform(post("/auth/logout")
                         .header("Authorization", "Bearer " + accessToken))
                 .andExpect(status().isUnauthorized());
 
@@ -222,7 +222,7 @@ class AuthControllerIntegrationTest {
         assertThat(loginResult.getRequest().getSession(false)).isNull();
         assertThat(loginResult.getResponse().getCookie("JSESSIONID")).isNull();
 
-        MvcResult deniedResult = mockMvc.perform(post("/api/stories"))
+        MvcResult deniedResult = mockMvc.perform(post("/auth/logout"))
                 .andExpect(status().isUnauthorized())
                 .andReturn();
         assertThat(deniedResult.getResponse().getCookie("JSESSIONID")).isNull();

@@ -72,7 +72,7 @@ class StoryControllerIntegrationTest {
 
     @Test
     void getStories_publicWithoutToken_returns200() throws Exception {
-        storyRepository.save(new Story(null, "Titulo", "Desc", null, null, "cuerpo"));
+        storyRepository.save(new Story(null, "Titulo", "Desc", null, null, "cuerpo", null, null));
 
         mockMvc.perform(get("/api/stories/all-titles"))
                 .andExpect(status().isOk())
@@ -81,7 +81,7 @@ class StoryControllerIntegrationTest {
 
     @Test
     void getStoryById_publicWithoutToken_returns200() throws Exception {
-        Story story = storyRepository.save(new Story(null, "Titulo", "Desc", null, null, "cuerpo"));
+        Story story = storyRepository.save(new Story(null, "Titulo", "Desc", null, null, "cuerpo", null, null));
 
         mockMvc.perform(get("/api/stories/" + story.getId()))
                 .andExpect(status().isOk())
@@ -89,13 +89,16 @@ class StoryControllerIntegrationTest {
     }
 
     @Test
-    void createStory_withoutToken_returns401() throws Exception {
+    void createStory_withoutToken_returns201() throws Exception {
+        // Submissions are public: visitors never register, so the exact creation path
+        // is permitAll and an anonymous POST must succeed.
         mockMvc.perform(post("/api/stories")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"title":"Nueva","description":"Desc"}
                                 """))
-                .andExpect(status().isUnauthorized());
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.title").value("Nueva"));
     }
 
     @Test
@@ -111,8 +114,25 @@ class StoryControllerIntegrationTest {
     }
 
     @Test
+    void createStory_withAuthor_roundTripsAuthor() throws Exception {
+        mockMvc.perform(post("/api/stories")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"title":"Con Autor","description":"Desc","author":"Visitante"}
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.author").value("Visitante"));
+
+        Story persisted = storyRepository.findAll().stream()
+                .filter(s -> "Con Autor".equals(s.getTitle()))
+                .findFirst()
+                .orElseThrow();
+        assertThat(persisted.getAuthor()).isEqualTo("Visitante");
+    }
+
+    @Test
     void createStory_withClientSuppliedId_doesNotOverwriteExistingStory() throws Exception {
-        Story existing = storyRepository.save(new Story(null, "Original", "Desc", null, null, "cuerpo"));
+        Story existing = storyRepository.save(new Story(null, "Original", "Desc", null, null, "cuerpo", null, null));
 
         mockMvc.perform(post("/api/stories")
                         .header("Authorization", "Bearer " + token)
@@ -139,7 +159,7 @@ class StoryControllerIntegrationTest {
 
     @Test
     void updateStory_withoutToken_returns401() throws Exception {
-        Story story = storyRepository.save(new Story(null, "Titulo", "Desc", null, null, "cuerpo"));
+        Story story = storyRepository.save(new Story(null, "Titulo", "Desc", null, null, "cuerpo", null, null));
 
         mockMvc.perform(put("/api/stories/" + story.getId())
                         .contentType(MediaType.APPLICATION_JSON)
@@ -151,7 +171,7 @@ class StoryControllerIntegrationTest {
 
     @Test
     void updateStory_withToken_returns200() throws Exception {
-        Story story = storyRepository.save(new Story(null, "Titulo", "Desc", null, null, "cuerpo"));
+        Story story = storyRepository.save(new Story(null, "Titulo", "Desc", null, null, "cuerpo", null, null));
 
         mockMvc.perform(put("/api/stories/" + story.getId())
                         .header("Authorization", "Bearer " + token)
@@ -165,7 +185,7 @@ class StoryControllerIntegrationTest {
 
     @Test
     void updateStory_withOnlyTitleKeepsOtherFieldsIntact() throws Exception {
-        Story story = storyRepository.save(new Story(null, "Titulo", "Desc", "audio.mp3", "bg.png", "cuerpo"));
+        Story story = storyRepository.save(new Story(null, "Titulo", "Desc", "audio.mp3", "bg.png", "cuerpo", "Visitante", null));
 
         mockMvc.perform(put("/api/stories/" + story.getId())
                         .header("Authorization", "Bearer " + token)
@@ -177,17 +197,19 @@ class StoryControllerIntegrationTest {
                 .andExpect(jsonPath("$.title").value("Editada"))
                 .andExpect(jsonPath("$.description").value("Desc"))
                 .andExpect(jsonPath("$.audioUrl").value("audio.mp3"))
-                .andExpect(jsonPath("$.body").value("cuerpo"));
+                .andExpect(jsonPath("$.body").value("cuerpo"))
+                .andExpect(jsonPath("$.author").value("Visitante"));
 
         Story reloaded = storyRepository.findById(story.getId()).orElseThrow();
         assertThat(reloaded.getDescription()).isEqualTo("Desc");
         assertThat(reloaded.getAudioUrl()).isEqualTo("audio.mp3");
         assertThat(reloaded.getBody()).isEqualTo("cuerpo");
+        assertThat(reloaded.getAuthor()).isEqualTo("Visitante");
     }
 
     @Test
     void uploadBody_withoutToken_returns401() throws Exception {
-        Story story = storyRepository.save(new Story(null, "Titulo", "Desc", null, null, "cuerpo"));
+        Story story = storyRepository.save(new Story(null, "Titulo", "Desc", null, null, "cuerpo", null, null));
         MockMultipartFile file = new MockMultipartFile("file", "story.docx",
                 "application/vnd.openxmlformats-officedocument.wordprocessingml.document", validDocx());
 
@@ -197,7 +219,7 @@ class StoryControllerIntegrationTest {
 
     @Test
     void uploadBody_withTokenAndValidDocx_returns200() throws Exception {
-        Story story = storyRepository.save(new Story(null, "Titulo", "Desc", null, null, "cuerpo"));
+        Story story = storyRepository.save(new Story(null, "Titulo", "Desc", null, null, "cuerpo", null, null));
         MockMultipartFile file = new MockMultipartFile("file", "story.docx",
                 "application/vnd.openxmlformats-officedocument.wordprocessingml.document", validDocx());
 
