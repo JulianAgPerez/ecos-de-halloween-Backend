@@ -3,17 +3,25 @@ package com.halloween.service;
 import com.halloween.dtos.StoryDTO;
 import com.halloween.dtos.StoryTitleDTO;
 import com.halloween.entities.Story;
+import com.halloween.entities.User;
 import com.halloween.repository.StoryRepository;
+import com.halloween.repository.UserRepository;
 import org.apache.poi.xwpf.usermodel.XWPFDocument;
 import org.apache.poi.xwpf.usermodel.XWPFParagraph;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
+
+import java.util.Objects;
+import java.util.Optional;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -32,6 +40,9 @@ public class StoryService {
     @Autowired
     private StoryRepository storyRepository;
 
+    @Autowired
+    private UserRepository userRepository;
+
     //Metodos para StoryDTO
     @Transactional(readOnly = true)
     public StoryDTO getStoryById(Long id){
@@ -45,6 +56,10 @@ public class StoryService {
         // POST must never merge-overwrite an existing row via a client-supplied id.
         storyDTO.setId(null);
         Story story = convertToEntity(storyDTO);
+        // Ownership is resolved from the security context, never from the request
+        // body: a client-supplied owner would let anyone claim another account.
+        // No session means no owner, which is what marks a story as community.
+        story.setOwner(currentUserOrNull().orElse(null));
         story = storyRepository.save(story);
         return convertToDTO(story);
     }
@@ -68,6 +83,9 @@ public class StoryService {
         }
         if (storyDTO.getBody() != null) {
             story.setBody(storyDTO.getBody());
+        }
+        if (storyDTO.getAuthor() != null) {
+            story.setAuthor(storyDTO.getAuthor());
         }
 
         return convertToDTO(storyRepository.save(story));
@@ -120,7 +138,7 @@ public class StoryService {
         var meta = storyRepository.findMetaById(storyId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Cuento no encontrado"));
 
-        return new StoryDTO(storyId, meta.getTitle(), meta.getDescription(), meta.getAudioUrl(), meta.getBackgroundImageUrl(), fileContent.toString());
+        return new StoryDTO(storyId, meta.getTitle(), meta.getDescription(), meta.getAudioUrl(), meta.getBackgroundImageUrl(), fileContent.toString(), meta.getAuthor());
     }
 
     private static boolean startsWithDocxMagicBytes(byte[] bytes) {
@@ -138,17 +156,43 @@ public class StoryService {
     //Metodos para StoryTitleDTO
     @Transactional(readOnly = true)
     public List<StoryTitleDTO> getAllStoryTitles(){
+        // Resolved once per request, not per row: an empty result must not pay
+        // for a user lookup.
+        final Optional<User> currentUser = currentUserOrNull();
         return storyRepository.findAllTitles().stream()
-                .map(view -> new StoryTitleDTO(view.getId(), view.getTitle()))
+                .map(view -> {
+                    // Objects.equals, not ==: ownerId is a nullable Long and ==
+                    // would unbox it, throwing on every community story.
+                    final boolean mine = currentUser
+                            .map(user -> Objects.equals(user.getId(), view.getOwnerId()))
+                            .orElse(false);
+                    return new StoryTitleDTO(view.getId(), view.getTitle(), mine);
+                })
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * The authenticated account behind the current request, or empty for an
+     * anonymous caller. {@link Authentication#isAuthenticated()} is true for the
+     * anonymous token too, so it is excluded explicitly.
+     */
+    private Optional<User> currentUserOrNull() {
+        final Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null
+                || !authentication.isAuthenticated()
+                || authentication instanceof AnonymousAuthenticationToken) {
+            return Optional.empty();
+        }
+        return userRepository.findByEmail(authentication.getName());
     }
 
     // Conversiones entre entidades y DTOs
     private StoryDTO convertToDTO(Story story){
-        return new StoryDTO(story.getId(), story.getTitle(), story.getDescription(), story.getAudioUrl(), story.getBackgroundImageUrl(), story.getBody());
+        return new StoryDTO(story.getId(), story.getTitle(), story.getDescription(), story.getAudioUrl(), story.getBackgroundImageUrl(), story.getBody(), story.getAuthor());
     }
 
     private Story convertToEntity(StoryDTO storyDTO){
-        return new Story(storyDTO.getId(), storyDTO.getTitle(), storyDTO.getDescription(), storyDTO.getAudioUrl(), storyDTO.getBackgroundImageUrl(), storyDTO.getBody());
+        // owner is set by the caller from the security context, never from the DTO.
+        return new Story(storyDTO.getId(), storyDTO.getTitle(), storyDTO.getDescription(), storyDTO.getAudioUrl(), storyDTO.getBackgroundImageUrl(), storyDTO.getBody(), storyDTO.getAuthor(), null);
     }
 }
