@@ -166,7 +166,7 @@ public class StoryService {
                     final boolean mine = currentUser
                             .map(user -> Objects.equals(user.getId(), view.getOwnerId()))
                             .orElse(false);
-                    return new StoryTitleDTO(view.getId(), view.getTitle(), mine);
+                    return new StoryTitleDTO(view.getId(), view.getTitle(), view.getDescription(), mine);
                 })
                 .collect(Collectors.toList());
     }

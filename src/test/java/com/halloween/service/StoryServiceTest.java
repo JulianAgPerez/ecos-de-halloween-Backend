@@ -63,6 +63,7 @@ class StoryServiceTest {
         return new StoryRepository.StoryTitleView() {
             @Override public Long getId() { return id; }
             @Override public String getTitle() { return title; }
+            @Override public String getDescription() { return null; }
             @Override public Long getOwnerId() { return ownerId; }
         };
     }
@@ -258,6 +259,7 @@ class StoryServiceTest {
         StoryRepository.StoryTitleView view = new StoryRepository.StoryTitleView() {
             @Override public Long getId() { return 1L; }
             @Override public String getTitle() { return "El susurro"; }
+            @Override public String getDescription() { return "Un cuento"; }
             @Override public Long getOwnerId() { return null; }
         };
         when(storyRepository.findAllTitles()).thenReturn(List.of(view));
@@ -267,6 +269,7 @@ class StoryServiceTest {
         assertThat(titles).hasSize(1);
         assertThat(titles.get(0).getId()).isEqualTo(1L);
         assertThat(titles.get(0).getTitle()).isEqualTo("El susurro");
+        assertThat(titles.get(0).getDescription()).isEqualTo("Un cuento");
         verify(storyRepository, never()).findAll();
     }
 
