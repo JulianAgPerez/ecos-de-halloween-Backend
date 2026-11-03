@@ -1,5 +1,7 @@
 .git
 .gitignore
+# Local-only (org.gradle.java.home points at a Windows JDK path).
+gradle.properties
 .gradle
 .idea
 .env
